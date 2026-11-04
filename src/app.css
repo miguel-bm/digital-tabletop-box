@@ -172,3 +172,6 @@ a.btn-sm { color: var(--text); text-decoration: none; display: inline-block; }
 .measure input:focus { border-color: var(--accent); }
 .measure em { font: 10px var(--mono); color: var(--muted); font-style: normal; }
 #guide .guide-parts:has(.measure) { max-height: 170px; }
+table.cmpt td, table.cmpt th { padding: 4px 3px; }
+table.cmpt td.n { font-size: 10.5px; }
+.tag { white-space: nowrap; }

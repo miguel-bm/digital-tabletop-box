@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "vite build && wrangler deploy",
-    "test": "node tests/sweep.mjs && node tests/collisions.mjs"
+    "test": "node tests/fem-validation.mjs && node tests/sweep.mjs && node tests/collisions.mjs"
   },
   "dependencies": {
     "three": "^0.170.0"

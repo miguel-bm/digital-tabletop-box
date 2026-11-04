@@ -201,7 +201,7 @@ function renderSaved() {
   const host = $('#saved');
   const persist = () => { try { localStorage.setItem('tabletop.saved', JSON.stringify(saved)); } catch { /* nada */ } };
   host.innerHTML = `<div class="saverow"><input id="save-name" placeholder="nombre de la variante…" maxlength="40"/><button id="save-btn" class="btn-sm">Guardar</button></div>` +
-    (saved.length ? `<div class="savelist">${saved.map((s, i) => `<div class="sv"><button data-load="${i}" title="Cargar"><b>${s.name.replace(/</g, '&lt;')}</b><small>${s.summary || ''}</small></button><button data-del="${i}" class="x" title="Borrar">✕</button></div>`).join('')}</div>` : '<p class="note">Guarda aquí versiones para compararlas (p. ej. «con tapa» / «sin tapa»).</p>');
+    (saved.length ? `<div class="savelist">${saved.map((s, i) => `<div class="sv"><button data-load="${i}" title="Cargar"><b>${s.name.replace(/</g, '&lt;')}</b><small>${s.summary || ''}</small></button><button data-cmp="${i}" class="x" title="Comparar con el diseño actual">⇄</button><button data-del="${i}" class="x" title="Borrar">✕</button></div>`).join('')}</div>` : '<p class="note">Guarda aquí versiones para compararlas (p. ej. «con tapa» / «sin tapa»).</p>');
   $('#save-btn').onclick = () => {
     const name = $('#save-name').value.trim() || 'Variante ' + (saved.length + 1);
     const m = design.metrics;
@@ -210,6 +210,27 @@ function renderSaved() {
   };
   host.querySelectorAll('[data-load]').forEach(b => b.onclick = () => { const s = saved[Number(b.dataset.load)]; commit(sanitize(s.params)); toast(`Cargado «${s.name}»`); });
   host.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { saved.splice(Number(b.dataset.del), 1); persist(); renderSaved(); });
+  host.querySelectorAll('[data-cmp]').forEach(b => b.onclick = async () => {
+    const s = saved[Number(b.dataset.cmp)];
+    const { runCases, thermal } = await import('./sim.js');
+    const A = design, B = buildDesign(sanitize(s.params));
+    const row = d => {
+      const m = d.metrics, c = runCases(d), pr = c.find(x => x.id === 'protector'), ed = c.find(x => x.id === 'edge');
+      return [
+        ['Medidas', `${Math.round(m.outer.X)} × ${Math.round(m.outer.Z)} × ${Math.round(m.outer.H + m.y0)}`],
+        ['Peso total', f1(m.mass.total) + ' kg'], ['Coste estimado', eur(buildBOM(d).total)], ['Tableros', Object.entries(boardUsage(d).byT).map(([T, n]) => n + '×' + T).join(' + ')],
+        ['Marco visible lateral', f1(m.op1[0] + m.X / 2) + ' mm'], ['Protector toca la pantalla con', pr && pr.Ptouch != null ? (pr.Ptouch / 9.81 > 25 ? 'no toca (> 25 kg)' : f1(pr.Ptouch / 9.81) + ' kg') : '—'],
+        ['Flecha del canto con 40 kg', ed ? ed.rows[0][1].toFixed(2).replace('.', ',') + ' mm' : '—'], ['Aire interior', f1(thermal(d).Ti) + ' °C'], ['Avisos', String(d.warnings.filter(w => w.level !== 'info').length)],
+      ];
+    };
+    const ra = row(A), rb = row(B);
+    const XL = { cover: 'Revestimiento', coverColor: 'Color del revestimiento', frameFinish: 'Acabado del marco', frameColor: 'Color del marco', mapStyle: 'Mapa en pantalla', coverT: 'Grosor del revestimiento', scenery: 'Escena' };
+    const diff = Object.keys(DEFAULTS).filter(k => A.params[k] !== B.params[k]).map(k => `<li>${(PARAM_INDEX[k] && PARAM_INDEX[k].l) || XL[k] || k}: <b>${B.params[k]}</b> → <b>${A.params[k]}</b></li>`).join('');
+    const card = $('#help .help-card');
+    helpEl.hidden = false;
+    card.dataset.mode = 'cmp';
+    card.innerHTML = `<button class="x" onclick="document.getElementById('help').hidden=true">✕</button><h2>Comparar</h2><table class="cut cmpt"><thead><tr><th></th><th class="n">${s.name.replace(/</g, '&lt;')}</th><th class="n">Actual</th></tr></thead><tbody>${ra.map((r, i) => `<tr><td>${r[0]}</td><td class="n">${rb[i][1]}</td><td class="n">${r[1]}</td></tr>`).join('')}</tbody></table>${diff ? `<div class="h-sub">Qué cambia</div><ul class="why">${diff}</ul>` : '<p>Son iguales.</p>'}`;
+  });
 }
 
 // ───────── panel derecho ─────────
@@ -593,7 +614,9 @@ $('#btn-share').addEventListener('click', async () => {
   catch { prompt('Copia este enlace', url); }
 });
 const helpEl = $('#help');
-$('#btn-help').addEventListener('click', () => (helpEl.hidden = !helpEl.hidden));
+const helpHTML = helpEl.querySelector('.help-card').innerHTML;
+function showHelp() { const c = helpEl.querySelector('.help-card'); if (c.dataset.mode) { c.innerHTML = helpHTML; delete c.dataset.mode; c.querySelector('#help-close').onclick = () => (helpEl.hidden = true); } helpEl.hidden = false; }
+$('#btn-help').addEventListener('click', () => (helpEl.hidden ? showHelp() : (helpEl.hidden = true)));
 $('#help-close').addEventListener('click', () => (helpEl.hidden = true));
 helpEl.addEventListener('click', e => { if (e.target === helpEl) helpEl.hidden = true; });
 $('#undo').addEventListener('click', undo);
@@ -608,7 +631,7 @@ addEventListener('keydown', e => {
   if (views[e.key]) setView(views[e.key]);
   if (e.key === 'x' || e.key === 'X') $('#tg-xray').click();
   if (e.key === 's' || e.key === 'S') $('#tg-section').click();
-  if (e.key === '?') helpEl.hidden = !helpEl.hidden;
+  if (e.key === '?') { if (helpEl.hidden) showHelp(); else helpEl.hidden = true; }
   if (e.key === 'Escape' && !helpEl.hidden) { helpEl.hidden = true; return; }
   if (e.key === 'Escape') { if (plans.on) $('#plans-close').click(); else if (guide.on) closeGuide(); else if (sim.on) closeSim(); }
   if (guide.on && e.key === 'ArrowRight') showStep(guide.i + 1);

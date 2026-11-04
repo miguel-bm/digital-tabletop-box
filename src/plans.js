@@ -412,11 +412,14 @@ function sheetsMontaje(d, n0, total, shots) {
 
 export function buildSheets(d, set, snap) {
   const nDes = (() => { const rows = cutRows(d).filter(r => r.stock !== 'espuma'); const big = rows.filter(r => r.L > 500 && r.W > 60).length; return Math.ceil(big / 4) + Math.ceil((rows.length - big) / 9); })();
-  const total = 1 + nDes + 1 + 1 + 1;
-  if (set === 'conjunto') return [sheetConjunto(d, 1, total), sheetExplosion(d, 2 + nDes + 2, total, snap)];
-  if (set === 'despiece') return sheetsDespiece(d, 2, total);
-  if (set === 'corte') return [sheetCorte(d, 2 + nDes, total)];
-  if (set === 'taller') return [sheetTaller(d, 3 + nDes, total)];
-  if (set === 'montaje') return sheetsMontaje(d, 1, Math.ceil(planAssembly(d).length / 6), snap);
-  return [sheetConjunto(d, 1, total), ...sheetsDespiece(d, 2, total), sheetCorte(d, 2 + nDes, total), sheetTaller(d, 3 + nDes, total)];
+  const nMont = Math.ceil(planAssembly(d).length / 6);
+  const total = 1 + nDes + 1 + 1 + 1 + nMont;
+  const pg = { conj: 1, des: 2, corte: 2 + nDes, taller: 3 + nDes, expl: 4 + nDes, mont: 5 + nDes };
+  const s = snap || {};
+  if (set === 'conjunto') return [sheetConjunto(d, pg.conj, total), sheetExplosion(d, pg.expl, total, s.explosion || (Array.isArray(snap) ? null : snap))];
+  if (set === 'despiece') return sheetsDespiece(d, pg.des, total);
+  if (set === 'corte') return [sheetCorte(d, pg.corte, total)];
+  if (set === 'taller') return [sheetTaller(d, pg.taller, total)];
+  if (set === 'montaje') return sheetsMontaje(d, pg.mont, total, Array.isArray(snap) ? snap : s.montaje);
+  return [sheetConjunto(d, pg.conj, total), ...sheetsDespiece(d, pg.des, total), sheetCorte(d, pg.corte, total), sheetTaller(d, pg.taller, total), sheetExplosion(d, pg.expl, total, s.explosion), ...sheetsMontaje(d, pg.mont, total, s.montaje)];
 }

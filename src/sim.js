@@ -131,13 +131,15 @@ export function runCases(d) {
     const self = navierPlate({ a, b, t: prot.t, E: prot.E, nu: prot.nu, loads: [{ P: selfq * a * b, x: a / 2, y: b / 2, u: a, v: b }], terms: 15 });
     const gap = m.twoLayer ? m.yF + p.t - m.yS : 0.3;
     const touches = elbow.wmax + self.wmax > gap;
+    const Ptouch = Math.max(0, (gap - self.wmax) / elbow.wmax * 250);
     cases.push({
       id: 'protector', title: 'Codo apoyado en el protector', icon: 'dice', target: 'P1', field: elbow,
       load: '250 N (≈ 25 kg) en 50 × 50 mm, en el centro', model: `Placa de Navier ${Math.round(a)} × ${Math.round(b)} × ${prot.t} mm, apoyada en el labio (E = ${prot.E} MPa)`,
-      rows: [['Flecha bajo el codo', elbow.wmax, 'mm'], ['Flecha por peso propio', self.wmax, 'mm'], ['Hueco hasta la pantalla', gap, 'mm'], ['Tensión máxima', elbow.smax, 'MPa'], ['Coef. de seguridad (rotura)', sf(elbow.smax, prot.MOR), '×']],
+      rows: [['Flecha bajo el codo (lineal)', elbow.wmax, 'mm'], ['Flecha por peso propio', self.wmax, 'mm'], ['Hueco hasta la pantalla', gap, 'mm'], ['Tensión máxima', elbow.smax, 'MPa'], ['Coef. de seguridad (rotura)', sf(elbow.smax, prot.MOR), '×'], ['Carga que lo hace tocar', Ptouch / 9.81, 'kg']],
+      Ptouch,
       status: verdict(!touches && sf(elbow.smax, prot.MOR) > 3, sf(elbow.smax, prot.MOR) > 2),
       text: touches
-        ? (m.twoLayer ? `Con ${prot.t} mm el protector baja ${f(elbow.wmax)} mm y toca la pantalla (hay ${f(gap)} mm). Al tocar, reparte la carga sobre el panel en vez de clavarla: no se rompe nada, pero puede verse una aureola momentánea. Sube a 5 mm o a vidrio si os apoyáis mucho.` : `El protector descansa casi sobre la pantalla: un codo lo empuja contra el panel (${f(elbow.wmax)} mm de flecha libre). Reparte la presión, pero para apoyarse sin miedo mejor el marco doble con pozo.`)
+        ? (m.twoLayer ? `Con ${prot.t} mm el protector toca la pantalla en cuanto se apoyan ${f(Ptouch / 9.81)} kg en el centro (hay ${f(gap)} mm de hueco; la flecha lineal con un codo sería ${f(elbow.wmax)} mm, en realidad se queda en el hueco porque apoya en la pantalla). Al tocar, reparte la carga sobre el panel en vez de clavarla: no se rompe nada, pero puede verse una aureola momentánea. Sube a 5 mm o a vidrio si os apoyáis mucho.` : `El protector descansa casi sobre la pantalla: un codo lo empuja contra el panel (${f(elbow.wmax)} mm de flecha libre). Reparte la presión, pero para apoyarse sin miedo mejor el marco doble con pozo.`)
         : `Aguanta un codo sin llegar a la pantalla: baja ${f(elbow.wmax)} mm de los ${f(gap)} mm de hueco. Coeficiente de seguridad ${f(sf(elbow.smax, prot.MOR))}.`,
     });
   } else {

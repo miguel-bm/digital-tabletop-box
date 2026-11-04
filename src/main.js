@@ -5,6 +5,7 @@ import { COVER_SWATCHES, FRAME_SWATCHES } from './materials.js';
 import { planAssembly } from './assembly.js';
 import { cutRows, cutListCSV, boardUsage } from './cutlist.js';
 import { icon, decorate, setupTips } from './icons.js';
+import { renderDecisions, PROT_EUR_M2 } from './decisions.js';
 
 const STORE_KEY = 'tabletop.v1';
 const $ = s => document.querySelector(s);
@@ -159,6 +160,7 @@ function selectTab(t, open = true) {
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   document.querySelectorAll('section[data-pane]').forEach(s => s.classList.toggle('on', s.dataset.pane === t));
   if (open) $('#panel-side').classList.remove('collapsed');
+  if (t === 'decisiones' && design) renderDecisions($('#pane-decisiones'), params, o => commit({ ...params, ...o }));
 }
 document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => selectTab(b.dataset.tab)));
 addEventListener('resize', () => { if (viewer.autoFit) viewer.fit(false); });
@@ -169,6 +171,7 @@ function renderSide() {
   renderHardware();
   renderData();
   renderWarnings();
+  if (ui.tab === 'decisiones') renderDecisions($('#pane-decisiones'), params, o => commit({ ...params, ...o }));
 }
 
 function swatchRow(list, cur, onPick) {
@@ -282,7 +285,7 @@ function renderHardware() {
     return `<tr><td>${it.name}${it.own ? ' <small style="display:inline">· tienes</small>' : ''}</td><td class="n">${String(it.qty).replace('.', ',')}${it.u ? ' ' + it.u : ''}</td><td class="n">${eur(c)}</td></tr>`;
   };
   h += `<tr class="mat"><td colspan="3">Material</td></tr>${line(ply)}${line(batten)}`;
-  if (prot) { const pc = prot.cut; const a = pc.L * pc.W * 1e-6; h += line({ name: `${prot.name} a medida ${f1(pc.L)}×${f1(pc.W)}`, qty: 1, unit: Math.round(a * (PROTECTORS[params.protector].mat === 'glass' ? 120 : params.protector.startsWith('policarb') ? 95 : 70)) }); }
+  if (prot) { const pc = prot.cut; const a = pc.L * pc.W * 1e-6; h += line({ name: `${prot.name} a medida ${f1(pc.L)}×${f1(pc.W)}`, qty: 1, unit: Math.round(a * PROT_EUR_M2[params.protector]) }); }
   Object.entries(groups).forEach(([g, list]) => { h += `<tr class="mat"><td colspan="3">${g}</td></tr>`; list.forEach(it => (h += line(it))); });
   h += '</tbody></table>';
   h += `<div class="tot"><span>Total estimado</span><span></span><span>${eur(total)}</span><span>Sin lo que ya tenéis</span><span></span><span>${eur(total - totalOwn)}</span></div>`;

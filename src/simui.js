@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { runCases, femSpec, fmtSim as f } from './sim.js';
+import { buildDesign } from './model.js';
 import { PLY } from './params.js';
 import { icon, decorate } from './icons.js';
 
@@ -114,6 +115,8 @@ export function renderSim(host, d, viewer, { close }) {
       </div>
       <div id="fem-prog"></div>
       <div id="fem-out">${cur ? femSummary(d, cur) : '<p class="muted">Calculando…</p>'}</div>
+      <div class="h-sub">¿Cuántos tornillos en la base?</div>
+      <div id="sens">${sensView(d)}</div>
       <div class="h-sub">Cálculos rápidos</div>
       ${cases.map(c => card(c)).join('')}
       <p class="note">Cálculos de orientación, no de certificación. FEM: láminas MITC4 + membrana con modos incompatibles, contrachapado ${PLY[d.params.plyType].label.toLowerCase()} con E = ${Math.round(PLY[d.params.plyType].E * 0.62)} MPa en su plano y G = ${PLY[d.params.plyType].G} MPa; la base se une a las paredes solo en los ${d.params.baseScrews} tornillos (muelles de 1,5 kN/mm). La tele se modela como carga, no aporta rigidez (lo que deja los resultados del lado seguro).</p>
@@ -129,6 +132,8 @@ export function renderSim(host, d, viewer, { close }) {
   sc.style.setProperty('--pct', st.scale + '%');
   sc.oninput = () => { st.scale = Number(sc.value); sc.previousElementSibling.textContent = '× ' + st.scale; sc.style.setProperty('--pct', st.scale + '%'); show3D(d, viewer, cases); };
   host.querySelectorAll('.simcard[data-card]').forEach(el => el.onclick = () => { st.card = st.card === el.dataset.card ? null : el.dataset.card; renderSim(host, d, viewer, { close }); });
+  const sb = host.querySelector('#sens-run');
+  if (sb) sb.onclick = () => runSens(d);
   show3D(d, viewer, cases);
   st.rerender = () => sim_isOpen(host) && renderSim(host, window.design || d, viewer, { close });
   if (!cur) runAll(d, () => st.rerender());
@@ -228,4 +233,55 @@ function thermalBars(t) {
   const list = [['Cerrada, sin rejillas', t.none], ['Con rejillas (tiro natural)', t.vOnly], ['Rejillas + 2 ventiladores USB', t.withFans], ['Tu configuración', t.now]];
   const max = 50, min = 20;
   return `<div class="tbars">${list.map(([l, r]) => `<div><span>${l}</span><i style="width:${((r.Ti - min) / (max - min)) * 100}%;background:${r.Ti < 38 ? '#8fd18b' : r.Ti < 42 ? '#ffc14d' : '#ff6b5b'}"></i><b>${f(r.Ti)} °C</b></div>`).join('')}<div class="tlim" style="left:calc(${((40 - min) / (max - min)) * 100}% * .62 + 38%)"></div></div>`;
+}
+
+// ───────── estudio de sensibilidad: tornillos de la base → alabeo en mesa coja ─────────
+const SENS_N = [4, 6, 8, 10, 14, 20, 30];
+const sensKey = d => JSON.stringify({ ...femSpec(d), screws: null });
+function sensView(d) {
+  const r = st.sens && st.sens.key === sensKey(d) ? st.sens : null;
+  if (!r) return `<p class="note">Repite la simulación «mesa coja» con ${SENS_N.join(', ')} tornillos (malla rápida, ~2 s).</p><button class="btn-sm" id="sens-run">Calcular</button>`;
+  if (r.pts.length < SENS_N.length) return `<div class="progress"><i style="width:${(r.pts.length / SENS_N.length) * 100}%"></i></div><p class="muted">Calculando con ${SENS_N[r.pts.length]} tornillos…</p>`;
+  return lineChart(r.pts, d.params.baseScrews);
+}
+function runSens(d) {
+  if (!worker) worker = new Worker(new URL('./fem.worker.js', import.meta.url), { type: 'module' });
+  const key = sensKey(d);
+  st.sens = { key, pts: [] };
+  const job = ++st.job;
+  st.busy = false;
+  let i = 0;
+  const paint = () => { const el = document.querySelector('#sens'); if (el) el.innerHTML = sensView(window.design || d); };
+  paint();
+  const next = () => {
+    if (i >= SENS_N.length || job !== st.job) return;
+    const n = SENS_N[i];
+    const spec = femSpec(buildDesign({ ...d.params, baseScrews: n }));
+    worker.onmessage = e => {
+      if (e.data.id !== job + ':s' + n || e.data.progress != null) return;
+      st.sens.pts.push([n, -e.data.result.probeU[1], e.data.result.vmax]);
+      i++; paint(); next();
+    };
+    worker.postMessage({ spec, caseId: 'trespatas', h: 45, id: job + ':s' + n });
+  };
+  next();
+}
+function lineChart(pts, cur) {
+  const W = 360, H = 170, L = 36, R = 12, T = 14, B = 30;
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const x0 = 0, x1 = Math.max(...xs) + 2, y0 = 0, y1 = Math.ceil(Math.max(...ys) / 5) * 5;
+  const X = v => L + ((v - x0) / (x1 - x0)) * (W - L - R), Y = v => T + (1 - (v - y0) / (y1 - y0)) * (H - T - B);
+  const ticksY = Array.from({ length: y1 / 5 + 1 }, (_, i) => i * 5);
+  const path = pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join('');
+  const best = pts[pts.length - 1][1];
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Alabeo frente a número de tornillos">
+    ${ticksY.map(v => `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" class="grid"/><text x="${L - 6}" y="${Y(v) + 3.5}" class="ax" text-anchor="end">${v}</text>`).join('')}
+    ${xs.map(v => `<text x="${X(v)}" y="${H - B + 14}" class="ax" text-anchor="middle">${v}</text>`).join('')}
+    <text x="${(L + W - R) / 2}" y="${H - 3}" class="ax" text-anchor="middle">tornillos en la base</text>
+    <text x="${L}" y="${T - 4}" class="ax">alabeo de la esquina (mm)</text>
+    <line x1="${X(cur)}" x2="${X(cur)}" y1="${T}" y2="${H - B}" class="cur"/>
+    <path d="${path}" class="ln"/>
+    ${pts.map(p => `<g class="pt"><circle cx="${X(p[0])}" cy="${Y(p[1])}" r="4"/><circle cx="${X(p[0])}" cy="${Y(p[1])}" r="12" class="hit"><title>${p[0]} tornillos: ${f(p[1])} mm de alabeo · ${f(p[2])} MPa</title></circle></g>`).join('')}
+  </svg>
+  <p class="note">Por encima de ~${pts.find(p => p[1] < best * 1.1)?.[0] ?? 14} tornillos ya no se gana casi nada: el resto de la flexibilidad es la propia torsión del tablero. Por debajo de 8 la base «flota» entre tornillos y la caja pierde rigidez. La línea vertical marca tu diseño (${cur}).</p>`;
 }

@@ -13,6 +13,13 @@ export function planAssembly(d) {
   const add = st => steps.push(st);
 
   add({
+    key: 'medir', title: 'Medir la tele', flip: false, explode: 0,
+    now: ['TV'], fixtures: ['tv'],
+    text: `Antes de cortar nada, mide la tele real (sin peana) y corrige los valores de Diseño › Televisor marcados «medir»: fondo en el borde fino (ahora ${f1(p.tvRimD)} mm) y de la joroba (${f1(p.tvD)}); ancho y alto de la joroba (${p.bumpW} × ${p.bumpH}) y cuánto está desplazada hacia el canto inferior; la posición del centro de las 4 roscas VESA respecto al centro de la tele (${f1(p.vesaDx)} lateral, ${f1(p.vesaDz)} hacia abajo); el marco inferior de la pantalla (${f1(p.bezelBottom)}) y dónde está el receptor del mando (${f1(p.irDx)} desde el centro). Con esto salen bien los tacos colgadores, la ventana del marco y el agujero IR.`,
+    access: 'Mide con la tele boca abajo sobre una manta: regla apoyada en el dorso y calibre o escuadra para los fondos. Todo en milímetros.',
+    hw: ['Metro', 'Calibre', 'Escuadra'],
+  });
+  add({
     key: 'corte', title: 'Cortar y mecanizar', flip: false, explode: 0.9,
     now: [...walls, ...ids('marco'), ...ids('base')], fixtures: [],
     text: `Corta del tablero de ${p.t} mm las cuatro paredes, ${m.twoLayer ? 'las dos capas' : 'la capa'} del marco y la base (medidas en «Despiece» y plano de corte). Marca cada pieza con su ID a lápiz en la cara interior. Antes de montar haz todos los taladros: ${p.cable === 'pasamuros' ? `dos pasamuros Ø${p.cableDia} con corona` : p.cable === 'panel' ? 'huecos rectangulares para la base IEC y el HDMI de panel (taladro en las esquinas + caladora + lima)' : 'las ranuras de cable en el canto inferior'} en el lateral de conexiones, ${p.vents ? `${p.ventCount} ranuras de ventilación (dos taladros Ø8 y caladora)` : 'sin rejillas'}${p.speakerSlots ? ', las rejillas de los altavoces en el frente' : ''}${p.baseVents ? ' y la ventilación de la base' : ''}. La ventana del marco: taladro Ø10 en cada esquina y caladora o fresadora con guía; lija los cantos interiores.`,

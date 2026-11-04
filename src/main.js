@@ -22,6 +22,16 @@ try {
   if (s) { params = { ...DEFAULTS, ...s.params }; ui = { ...ui, ...s.ui }; }
 } catch { /* sin almacenamiento */ }
 const urlStep = new URLSearchParams(location.search).get('paso');
+let fromLink = false;
+try {
+  const hm = location.hash.match(/d=([\w-]+)/);
+  if (hm) {
+    const json = decodeURIComponent(escape(atob(hm[1].replace(/-/g, '+').replace(/_/g, '/'))));
+    params = { ...DEFAULTS, ...JSON.parse(json) };
+    fromLink = true;
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+} catch { /* enlace roto */ }
 const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify({ params, ui })); } catch { /* lleno o bloqueado */ } };
 
 const hist = { past: [], future: [] };
@@ -376,6 +386,13 @@ function setView(v) {
 
 // ───────── guía de montaje ─────────
 const guide = { on: false, i: 0, steps: [] };
+let doneSteps = {};
+try { doneSteps = JSON.parse(localStorage.getItem('tabletop.done') || '{}'); } catch { /* nada */ }
+$('#guide-done').addEventListener('change', e => {
+  const st = guide.steps[guide.i]; doneSteps[st.key] = e.target.checked;
+  try { localStorage.setItem('tabletop.done', JSON.stringify(doneSteps)); } catch { /* nada */ }
+  showStep(guide.i, false);
+});
 function openGuide(i = 0) {
   guide.on = true; guide.steps = planAssembly(design);
   document.body.classList.add('guiding');
@@ -409,7 +426,8 @@ function showStep(i, fly = true) {
   $('#guide-access').innerHTML = st.access ? `<b>Ojo</b>${st.access}` : '';
   const parts = st.now.map(id => design.pieces.find(p => p.id === id)).filter(Boolean);
   $('#guide-parts').innerHTML = parts.map(p => `<span class="gp"><b>${p.id}</b> ${p.name}</span>`).join('') + (st.hw || []).map(h => `<span class="gp hw">${h}</span>`).join('');
-  $('#guide-chapters').innerHTML = guide.steps.map((s, k) => `<button data-k="${k}" class="${k === i ? 'on' : ''}"><b>${k + 1}</b>${s.title.split(':')[0]}</button>`).join('');
+  $('#guide-done').checked = !!doneSteps[st.key];
+  $('#guide-chapters').innerHTML = guide.steps.map((s, k) => `<button data-k="${k}" class="${k === i ? 'on' : ''} ${doneSteps[s.key] ? 'done' : ''}"><b>${doneSteps[s.key] ? '✓' : k + 1}</b>${s.title.split(':')[0]}</button>`).join('');
   $('#guide-chapters').querySelectorAll('button').forEach(b => b.addEventListener('click', () => showStep(Number(b.dataset.k))));
   $('#guide-chapters .on').scrollIntoView({ inline: 'center', block: 'nearest' });
   $('#guide-prev').disabled = i === 0;
@@ -428,7 +446,9 @@ $('#guide-min').addEventListener('click', () => $('#guide').classList.toggle('mi
 const plans = { on: false, set: 'conjunto' };
 async function renderPlans() {
   const { buildSheets } = await import('./plans.js');
-  const sheets = buildSheets(design, plans.set);
+  let snap = null;
+  if (plans.set === 'conjunto') { try { snap = viewer.snapshot(); } catch (e) { console.warn(e); } }
+  const sheets = buildSheets(design, plans.set, snap);
   $('#sheets').innerHTML = sheets.join('');
   $('#plans-info').textContent = `${sheets.length} hoja${sheets.length > 1 ? 's' : ''} A3 · cotas en mm`;
 }
@@ -485,6 +505,17 @@ $('#file-import').addEventListener('change', async e => {
   try { const j = JSON.parse(await f.text()); commit({ ...DEFAULTS, ...(j.params || j) }); toast('Diseño cargado'); } catch { toast('No se pudo leer el archivo'); }
 });
 $('#btn-reset').addEventListener('click', () => { commit({ ...DEFAULTS }); toast('Valores por defecto'); });
+$('#btn-share').addEventListener('click', async () => {
+  const diff = Object.fromEntries(Object.entries(params).filter(([k, v]) => v !== DEFAULTS[k]));
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(diff)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const url = location.origin + location.pathname + '#d=' + b64;
+  try { await navigator.clipboard.writeText(url); toast('Enlace copiado: ábrelo en otro dispositivo o pásaselo a tu amigo'); }
+  catch { prompt('Copia este enlace', url); }
+});
+const helpEl = $('#help');
+$('#btn-help').addEventListener('click', () => (helpEl.hidden = !helpEl.hidden));
+$('#help-close').addEventListener('click', () => (helpEl.hidden = true));
+helpEl.addEventListener('click', e => { if (e.target === helpEl) helpEl.hidden = true; });
 $('#undo').addEventListener('click', undo);
 $('#redo').addEventListener('click', redo);
 function undo() { if (!hist.past.length) return; hist.future.push({ ...params }); params = hist.past.pop(); save(); schedule(); }
@@ -497,6 +528,8 @@ addEventListener('keydown', e => {
   if (views[e.key]) setView(views[e.key]);
   if (e.key === 'x' || e.key === 'X') $('#tg-xray').click();
   if (e.key === 's' || e.key === 'S') $('#tg-section').click();
+  if (e.key === '?') helpEl.hidden = !helpEl.hidden;
+  if (e.key === 'Escape' && !helpEl.hidden) { helpEl.hidden = true; return; }
   if (e.key === 'Escape') { if (plans.on) $('#plans-close').click(); else if (guide.on) closeGuide(); else if (sim.on) closeSim(); }
   if (guide.on && e.key === 'ArrowRight') showStep(guide.i + 1);
   if (guide.on && e.key === 'ArrowLeft') showStep(guide.i - 1);
@@ -563,3 +596,5 @@ renderSide();
 renderReadouts();
 updateInsets();
 if (urlStep) openGuide(Number(urlStep) - 1);
+if (fromLink) { save(); toast('Diseño cargado desde el enlace'); }
+try { if (!localStorage.getItem('tabletop.seenHelp')) { helpEl.hidden = false; localStorage.setItem('tabletop.seenHelp', '1'); } } catch { /* nada */ }

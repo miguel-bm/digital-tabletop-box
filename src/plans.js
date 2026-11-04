@@ -353,10 +353,33 @@ function sheetTaller(d, n, total) {
   return sheet('Taller', 'Orden de trabajo, herrajes y herramientas', n, total, b, d);
 }
 
-export function buildSheets(d, set) {
+// ───────── vista explosionada (captura del 3D) ─────────
+function sheetExplosion(d, n, total, snap) {
+  let b = text(16, 20, 'VISTA EXPLOSIONADA', 5, 'font-weight="700"');
+  b += text(16, 25, 'Cada pieza con su ID; la lista de abajo dice qué es. Montaje: de dentro afuera, con la caja boca abajo para la tele y la base.', 2.6, `fill="${MUTED}"`);
+  if (!snap) return sheet('Explosión', 'Vista de conjunto con piezas separadas', n, total, b + text(20, 60, 'Abre los planos desde la vista 3D para generar esta hoja.', 3), d);
+  const iw = W - 32, ih = iw * snap.h / snap.w, ox = 16, oy = 30;
+  const ihc = Math.min(ih, 200), iwc = ihc * snap.w / snap.h, ox2 = ox + (iw - iwc) / 2;
+  b += `<image href="${snap.url}" x="${ox2}" y="${oy}" width="${iwc}" height="${ihc}" preserveAspectRatio="xMidYMid meet"/>`;
+  const sx = iwc / snap.w, sy = ihc / snap.h;
+  const seen = new Set();
+  snap.labels.forEach((l, i) => {
+    if (seen.has(l.id)) return; seen.add(l.id);
+    const x = ox2 + l.x * sx, y = oy + l.y * sy;
+    if (x < ox || x > ox + iw || y < oy || y > oy + ihc) return;
+    b += `<circle cx="${x}" cy="${y}" r="3.2" fill="#fff" stroke="${ACC}" stroke-width=".6"/>` + text(x, y + 1.1, l.id, 2.4, 'text-anchor="middle" font-weight="700"');
+  });
+  // leyenda
+  const list = d.pieces.filter(pc => seen.has(pc.id));
+  const cols = 4, cw = (W - 32) / cols;
+  list.forEach((pc, i) => { const cx = 16 + (i % cols) * cw, cy = oy + ihc + 8 + Math.floor(i / cols) * 3.6; if (cy > H - 34) return; b += text(cx, cy, pc.id, 2.4, `font-weight="700" fill="${ACC}"`) + text(cx + 7, cy, pc.name, 2.4); });
+  return sheet('Explosión', 'Vista de conjunto con piezas separadas', n, total, b, d);
+}
+
+export function buildSheets(d, set, snap) {
   const nDes = (() => { const rows = cutRows(d).filter(r => r.stock !== 'espuma'); const big = rows.filter(r => r.L > 500 && r.W > 60).length; return Math.ceil(big / 4) + Math.ceil((rows.length - big) / 9); })();
-  const total = 1 + nDes + 1 + 1;
-  if (set === 'conjunto') return [sheetConjunto(d, 1, total)];
+  const total = 1 + nDes + 1 + 1 + 1;
+  if (set === 'conjunto') return [sheetConjunto(d, 1, total), sheetExplosion(d, 2 + nDes + 2, total, snap)];
   if (set === 'despiece') return sheetsDespiece(d, 2, total);
   if (set === 'corte') return [sheetCorte(d, 2 + nDes, total)];
   if (set === 'taller') return [sheetTaller(d, 3 + nDes, total)];

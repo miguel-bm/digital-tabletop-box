@@ -113,3 +113,22 @@ svg.chart .cur { stroke: var(--text); stroke-dasharray: 3 3; stroke-width: 1; op
 table.buy td:first-child { width: 18px; padding-right: 0; }
 table.buy input { accent-color: var(--accent); }
 table.buy tr.got td:nth-child(2) { color: var(--muted); text-decoration: line-through; }
+
+/* ── ayuda ── */
+#help { position: fixed; inset: 0; z-index: 50; background: rgba(15, 16, 18, .55); backdrop-filter: blur(3px); display: grid; place-items: center; padding: 16px; }
+.help-card { position: relative; width: min(760px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: var(--panel-solid); border: 1px solid var(--line-2); border-radius: 14px; padding: 22px 24px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
+.help-card h2 { margin: 0 0 6px; font: 800 28px var(--display); letter-spacing: .12em; text-transform: uppercase; }
+.help-card p { color: #c9ced6; font-size: 13.5px; line-height: 1.5; margin: 0 0 12px; }
+.help-card .x { position: absolute; top: 14px; right: 14px; background: none; border: 0; color: var(--muted); font-size: 16px; cursor: pointer; }
+.help-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 14px 0; }
+.help-grid div { background: rgba(255, 255, 255, .04); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.help-grid b { display: block; font: 600 11px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+.help-grid span { font-size: 12.5px; line-height: 1.45; color: #c9ced6; }
+.help-keys { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+kbd { font: 600 11px var(--mono); background: rgba(255, 255, 255, .08); border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; color: var(--text); }
+code { font: 12px var(--mono); color: var(--accent); }
+
+.gdone { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); cursor: pointer; }
+.gdone input { accent-color: var(--ok); }
+.gdone + .guide-min + #guide-close, .gdone ~ #guide-close { margin-left: 4px; }
+.guide-chapters button.done b { color: var(--ok); }

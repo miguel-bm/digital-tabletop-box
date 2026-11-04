@@ -395,13 +395,29 @@ export class Viewer {
     this.anim.explode += (this.state.explode - this.anim.explode) * k;
     this.anim.lid += ((this.state.lidOn ? 1 : 0) - this.anim.lid) * k;
     this.anim.flip += (this.flipTarget - this.anim.flip) * k * 0.8;
+    this.pose(dt);
+    if (this.camTween) {
+      const c = this.camTween; c.t = Math.min(1, c.t + dt * 2.2);
+      const s = c.t * c.t * (3 - 2 * c.t);
+      this.camera.position.lerpVectors(c.from, c.to, s);
+      this.controls.target.lerpVectors(c.tf, c.tt, s);
+      if (c.t >= 1) this.camTween = null;
+    }
+    this.controls.update();
+    this.dims.update(this.camera, this.host.clientWidth / this.host.clientHeight);
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  // coloca piezas y herrajes según explosión, volteo y tapa
+  pose(dt = 0) {
     const th = Math.PI * this.anim.flip, cyS = (this.design ? (this.design.metrics.y0 + this.design.metrics.outer.H) / 2 : 50) * S;
     const lift = Math.sin(th) * 0.35;
+    const e = this.anim.explode;
+    const exLift = e * 0.2 * (1 - this.anim.flip) + e * 0.05;
     for (const g of [this.model, this.fx]) {
       g.rotation.x = th;
-      g.position.set(0, cyS * (1 - Math.cos(th)) + lift, -cyS * Math.sin(th));
+      g.position.set(0, cyS * (1 - Math.cos(th)) + lift + exLift, -cyS * Math.sin(th));
     }
-    const e = this.anim.explode;
     // tapa: puesta (1) o de pie apoyada detrás de la caja (0)
     const la = this.anim.lid, lt = this.lidTop;
     const lidPos = new THREE.Vector3(), lidQ = new THREE.Quaternion();
@@ -426,16 +442,49 @@ export class Viewer {
       else g.position.set(pcExp[0] * e, pcExp[1] * e, pcExp[2] * e);
       g.traverse(o => { if (o.userData.spin) o.rotation.y += dt * 12; });
     }
-    if (this.camTween) {
-      const c = this.camTween; c.t = Math.min(1, c.t + dt * 2.2);
-      const s = c.t * c.t * (3 - 2 * c.t);
-      this.camera.position.lerpVectors(c.from, c.to, s);
-      this.controls.target.lerpVectors(c.tf, c.tt, s);
-      if (c.t >= 1) this.camTween = null;
-    }
-    this.controls.update();
-    this.dims.update(this.camera, this.host.clientWidth / this.host.clientHeight);
-    this.renderer.render(this.scene, this.camera);
+  }
+
+  // Imagen fija (para los planos): vista isométrica con piezas separadas y la posición en pantalla de cada pieza
+  snapshot({ w = 2000, h = 1200, explode = 1, hide = ['escena', 'tapa', 'piel'] } = {}) {
+    const saved = { anim: { ...this.anim }, hidden: this.state.hidden, hi: this.highlight, ov: this.overlay.visible, dims: this.dims.group.visible, flip: this.flipTarget };
+    Object.assign(this.anim, { explode, flip: 0, lid: 0 });
+    this.highlight = null; this.state.hidden = new Set(hide);
+    this.applyVisibility();
+    this.overlay.visible = false; this.dims.group.visible = false; this.tableGroup.visible = false;
+    this.model.visible = true; this.fx.visible = true;
+    this.pose(0);
+    const M = this.design.metrics, span = M.outer.X * S;
+    const cam = new THREE.PerspectiveCamera(24, w / h, 0.02, 60);
+    cam.position.set(-0.9 * span, 1.55 * span, 1.75 * span);
+    const tgt = new THREE.Vector3(0, 0.12, 0);
+    cam.lookAt(tgt);
+    // encuadre: aleja hasta que quepan todas las piezas
+    const box = new THREE.Box3();
+    this.model.children.forEach(g => { if (g.visible) box.expandByObject(g); });
+    const sph = box.getBoundingSphere(new THREE.Sphere());
+    const dir = cam.position.clone().sub(sph.center).normalize();
+    cam.position.copy(sph.center).addScaledVector(dir, sph.radius / Math.sin(THREE.MathUtils.degToRad(12)) * 0.92);
+    cam.lookAt(sph.center);
+    cam.updateMatrixWorld();
+    const r = this.renderer;
+    r.setPixelRatio(1); r.setSize(w, h, false);
+    r.setClearColor(0xffffff, 1);
+    r.render(this.scene, cam);
+    const url = r.domElement.toDataURL('image/jpeg', 0.9);
+    const labels = [];
+    this.model.children.forEach(g => {
+      if (!g.visible) return;
+      const c = new THREE.Box3().setFromObject(g).getCenter(new THREE.Vector3()).project(cam);
+      labels.push({ id: g.userData.piece.id, name: g.userData.piece.name, x: (c.x + 1) / 2 * w, y: (1 - c.y) / 2 * h });
+    });
+    // restaurar
+    this.anim = saved.anim; this.state.hidden = saved.hidden; this.highlight = saved.hi; this.flipTarget = saved.flip;
+    this.overlay.visible = saved.ov; this.dims.group.visible = saved.dims;
+    if (this.overlayHides) { this.model.visible = false; this.fx.visible = false; }
+    r.setClearColor(0x000000, 0);
+    r.setPixelRatio(Q.pixelRatio); this.resize();
+    this.applyVisibility();
+    return { url, labels, w, h };
   }
 
   png() { return this.renderer.domElement.toDataURL('image/png'); }

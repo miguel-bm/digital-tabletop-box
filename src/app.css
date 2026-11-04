@@ -109,3 +109,7 @@ svg.chart .pt .hit { fill: transparent; cursor: help; }
 svg.chart .pt:hover circle:first-child { r: 5.5; }
 svg.chart .cur { stroke: var(--text); stroke-dasharray: 3 3; stroke-width: 1; opacity: .5; }
 .btn-sm { background: rgba(255, 255, 255, .06); border: 1px solid var(--line-2); border-radius: 7px; padding: 5px 11px; cursor: pointer; }
+
+table.buy td:first-child { width: 18px; padding-right: 0; }
+table.buy input { accent-color: var(--accent); }
+table.buy tr.got td:nth-child(2) { color: var(--muted); text-decoration: line-through; }

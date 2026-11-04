@@ -44,10 +44,9 @@ export function cutListCSV(d) {
 export function packBoards(d) {
   const parts = [];
   d.pieces.forEach(pc => {
-    if (pc.role === 'tv' || pc.skin) return;
+    if (pc.role === 'tv' || pc.skin || pc.role === 'burlete') return;
     const c = pieceCut(pc);
     if ((c.stock || 'tablero') !== 'tablero') return;
-    if (pc.role === 'pared' && pc.solids.length > 1) { /* galce: sigue siendo una pieza de t */ }
     parts.push({ id: pc.id, name: pc.name, w: c.L, h: c.W, frame: pc.role === 'marco' || pc.role === 'tapa' && pc.key === 'lidTop' });
   });
   const { W, H, kerf, edge } = BOARD;

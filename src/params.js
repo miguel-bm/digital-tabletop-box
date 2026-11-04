@@ -17,10 +17,10 @@ export const DEFAULTS = {
   footH: 8, feet: 6,
 
   // ── marco y protector ──
-  frame: 'rebaje', reveal: 1, protector: 'acrilico4', protOverlap: 10,
+  frame: 'rebaje', frame2Split: true, reveal: 1, protector: 'acrilico4', protOverlap: 10,
 
   // ── soporte de la tele ──
-  mount: 'vesa', railW: 40, railH: 20, hangerW: 18,
+  mount: 'vesa', railW: 40, railH: 20, hangerW: 20,
 
   // ── base extraíble ──
   baseFix: 'insertos', baseScrews: 14, baseVents: true,
@@ -102,6 +102,7 @@ export const SCHEMA = [
   ] },
   { id: 'marco', label: 'Marco y protector', icon: 'frame', params: [
     { k: 'frame', l: 'Tipo de marco', type: 'select', opts: { rebaje: 'Doble capa con pozo para el protector', simple: 'Simple (protector pinzado bajo el marco)' } },
+    { k: 'frame2Split', l: 'Capa superior en 4 listones (ahorra un tablero)', type: 'bool' },
     { k: 'reveal', l: 'Holgura sobre área visible', u: 'mm', min: -5, max: 10, step: 0.5 },
     { k: 'protector', l: 'Protector de pantalla', type: 'select', opts: Object.fromEntries(Object.entries(PROTECTORS).map(([k, v]) => [k, v.label])) },
     { k: 'protOverlap', l: 'Apoyo del protector en el marco', u: 'mm', min: 4, max: 30, step: 1 },

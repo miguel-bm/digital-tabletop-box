@@ -1,11 +1,11 @@
 import { buildDesign } from './model.js';
 import { runCases, thermal, fmtSim as f } from './sim.js';
 import { PROTECTORS, COVERS } from './params.js';
+import { PROT_EUR_M2 } from './bom.js';
 
 // Pestaña «Decisiones»: comparativas calculadas de las opciones principales y el porqué del diseño.
 
 const eur = v => Math.round(v) + ' €';
-export const PROT_EUR_M2 = { ninguno: 0, acrilico3: 55, acrilico4: 70, acrilico5: 90, policarb4: 95, vidrio4: 120 };
 const protCost = (k, d) => { const r = d.metrics.protRect; if (!r) return 0; return (r[2] - r[0]) * (r[3] - r[1]) * 1e-6 * PROT_EUR_M2[k]; };
 
 export function renderDecisions(host, params, apply) {

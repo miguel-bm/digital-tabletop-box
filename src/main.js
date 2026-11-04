@@ -5,7 +5,8 @@ import { COVER_SWATCHES, FRAME_SWATCHES } from './materials.js';
 import { planAssembly } from './assembly.js';
 import { cutRows, cutListCSV, boardUsage } from './cutlist.js';
 import { icon, decorate, setupTips } from './icons.js';
-import { renderDecisions, PROT_EUR_M2 } from './decisions.js';
+import { renderDecisions } from './decisions.js';
+import { buildBOM } from './bom.js';
 
 const STORE_KEY = 'tabletop.v1';
 const $ = s => document.querySelector(s);
@@ -270,26 +271,22 @@ function renderCut() {
   $('#plans-btn2').onclick = () => openPlans('corte');
 }
 
+let bought = {};
+try { bought = JSON.parse(localStorage.getItem('tabletop.bought') || '{}'); } catch { /* nada */ }
 function renderHardware() {
   const host = $('#pane-herrajes');
-  const groups = {};
-  design.hw.forEach(h => (groups[h.g] = groups[h.g] || []).push(h));
-  const u = boardUsage(design);
-  const ply = { name: `Tablero contrachapado ${params.t} mm (2440×1220)`, qty: u.boards, unit: params.plyType === 'abedul' ? 75 : 45, own: true };
-  const batten = { name: `Listón de pino ${params.battenW}×${params.battenH} (y tacos ${params.railW}×${params.railH})`, qty: Math.ceil(u.battenM), unit: 1.6, u: 'm', own: true };
-  const prot = design.pieces.find(p => p.role === 'protector');
-  let total = 0, totalOwn = 0;
-  let h = '<p class="note">Precios orientativos de ferretería/online en España (2026). Lo marcado <b>· tienes</b> ya lo tenéis.</p><table class="cut"><tbody>';
-  const line = (it) => {
-    const c = it.qty * it.unit; total += c; if (it.own) totalOwn += c;
-    return `<tr><td>${it.name}${it.own ? ' <small style="display:inline">· tienes</small>' : ''}</td><td class="n">${String(it.qty).replace('.', ',')}${it.u ? ' ' + it.u : ''}</td><td class="n">${eur(c)}</td></tr>`;
-  };
-  h += `<tr class="mat"><td colspan="3">Material</td></tr>${line(ply)}${line(batten)}`;
-  if (prot) { const pc = prot.cut; const a = pc.L * pc.W * 1e-6; h += line({ name: `${prot.name} a medida ${f1(pc.L)}×${f1(pc.W)}`, qty: 1, unit: Math.round(a * PROT_EUR_M2[params.protector]) }); }
-  Object.entries(groups).forEach(([g, list]) => { h += `<tr class="mat"><td colspan="3">${g}</td></tr>`; list.forEach(it => (h += line(it))); });
+  const bom = buildBOM(design);
+  const left = bom.items.filter(it => !it.own && !bought[it.key]).reduce((s, it) => s + it.cost, 0);
+  let h = '<p class="note">Precios orientativos (España, 2026). Marca lo que ya tengáis o hayáis comprado: se recuerda en este navegador.</p><table class="cut buy"><tbody>';
+  Object.entries(bom.groups).forEach(([g, list]) => {
+    h += `<tr class="mat"><td colspan="4">${g}</td></tr>`;
+    list.forEach(it => { const on = it.own || bought[it.key]; h += `<tr class="${on ? 'got' : ''}"><td><input type="checkbox" data-key="${it.key}" ${on ? 'checked' : ''} ${it.own ? 'disabled' : ''}></td><td>${it.name}${it.own ? ' <small style="display:inline">· tenéis</small>' : ''}</td><td class="n">${String(it.qty).replace('.', ',')}${it.u ? ' ' + it.u : ''}</td><td class="n">${eur(it.cost)}</td></tr>`; });
+  });
   h += '</tbody></table>';
-  h += `<div class="tot"><span>Total estimado</span><span></span><span>${eur(total)}</span><span>Sin lo que ya tenéis</span><span></span><span>${eur(total - totalOwn)}</span></div>`;
+  h += `<div class="tot"><span>Total estimado</span><span></span><span>${eur(bom.total)}</span><span>Falta por comprar</span><span></span><span>${eur(left)}</span></div><div class="btnrow"><button id="buy-print">Hoja de compra (planos)</button></div>`;
   host.innerHTML = h;
+  host.querySelectorAll('input[data-key]').forEach(c => c.addEventListener('change', () => { bought[c.dataset.key] = c.checked; try { localStorage.setItem('tabletop.bought', JSON.stringify(bought)); } catch { /* nada */ } renderHardware(); }));
+  $('#buy-print').onclick = () => openPlans('taller');
 }
 
 function bar(parts) {
@@ -445,6 +442,7 @@ $('#btn-plans').addEventListener('click', () => openPlans());
 $('#plans-close').addEventListener('click', () => { plans.on = false; $('#plans').hidden = true; });
 document.querySelectorAll('#plans-tabs button').forEach(b => b.addEventListener('click', () => openPlans(b.dataset.set)));
 $('#plans-print').addEventListener('click', () => print());
+$('#plans-dxf').addEventListener('click', async () => { const { boardsDXF } = await import('./dxf.js'); download('tablero-digital-corte.dxf', boardsDXF(design), 'application/dxf'); toast('DXF descargado: capas CORTE_EXT, CORTE_INT, TALADRO'); });
 $('#plans-csv').addEventListener('click', () => download('despiece.csv', cutListCSV(design), 'text/csv'));
 $('#plans-svg').addEventListener('click', () => {
   [...document.querySelectorAll('#sheets svg')].forEach((s, i) => download(`plano-${plans.set}-${i + 1}.svg`, s.outerHTML, 'image/svg+xml'));
@@ -537,10 +535,11 @@ document.querySelectorAll('#mnav button').forEach(b => b.addEventListener('click
 
 // el modelo se centra en el hueco que dejan los paneles
 function updateInsets() {
-  if (mq.matches) { viewer.setInsets(0, 0); return; }
+  if (mq.matches) { viewer.setInsets(0, 0, document.body.classList.contains('guiding') ? Math.max(0, $('#guide').offsetHeight - 40) : 0); return; }
   const L = !$('#panel-params').classList.contains('collapsed') && !document.body.classList.contains('guiding') ? 342 : 0;
   const R = document.body.classList.contains('simming') ? 424 : !$('#panel-side').classList.contains('collapsed') && !document.body.classList.contains('guiding') ? 384 : 0;
-  viewer.setInsets(L, R);
+  const B = document.body.classList.contains('guiding') ? Math.max(0, $('#guide').offsetHeight - 60) : 0;
+  viewer.setInsets(L, R, B);
 }
 new MutationObserver(updateInsets).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 ['#panel-params', '#panel-side'].forEach(s => new MutationObserver(updateInsets).observe($(s), { attributes: true, attributeFilter: ['class'] }));

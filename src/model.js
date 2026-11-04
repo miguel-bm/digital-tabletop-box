@@ -196,9 +196,20 @@ export function buildDesign(p) {
   const irF2 = irCovered && op2 && irPos[1] > op2[3] ? [{ circle: [irPos[0], irPos[1], 5], tag: 'Ventana IR Ø10' }] : [];
   add({ id: 'F1', key: 'frame1', name: twoLayer ? 'Marco · capa inferior (labio)' : 'Marco', role: 'marco', mat: twoLayer ? 'black' : frameMat, step: 'marco',
     solids: [{ plane: 'XZ', rect: outerRect, t: [yF, yF + t], holes: [{ rect: op1 }, ...irF1] }], explode: [0, 200, 0] });
-  if (twoLayer) {
+  if (twoLayer && !p.frame2Split) {
     add({ id: 'F2', key: 'frame2', name: 'Marco · capa superior (pozo)', role: 'marco', mat: frameMat, step: 'marco2',
       solids: [{ plane: 'XZ', rect: outerRect, t: [yF + t, yF + 2 * t], holes: [{ rect: op2 }, ...irF2] }], explode: [0, 280, 0] });
+  } else if (twoLayer) {
+    // 4 listones: los largos de punta a punta, los cortos entre ellos (juntas desfasadas respecto a la capa 1)
+    const yy = [yF + t, yF + 2 * t];
+    const strips = [
+      ['F2', 'Marco · pozo, listón del fondo', [xo0, zo0, xo1, op2[1]], irF2.filter(h => h.circle[1] < op2[1])],
+      ['F3', 'Marco · pozo, listón frontal', [xo0, op2[3], xo1, zo1], irF2.filter(h => h.circle[1] > op2[3])],
+      ['F4', 'Marco · pozo, listón izquierdo', [xo0, op2[1], op2[0], op2[3]], []],
+      ['F5', 'Marco · pozo, listón derecho', [op2[2], op2[1], xo1, op2[3]], []],
+    ];
+    strips.forEach(([id, name, r, holes]) => add({ id, key: 'frame2' + id, name, role: 'marco', mat: frameMat, step: 'marco2',
+      solids: [{ plane: 'XZ', rect: r, t: yy, holes }], explode: [0, 280, 0] }));
   }
   if (!p.irHole) warn('warn', 'El marco tapa el bisel inferior de la tele, donde está el receptor del mando: sin ventana IR solo podrás manejarla con la app SmartThings o por HDMI-CEC.');
   if (ring1 < 22) warn('warn', `El marco queda muy estrecho (${r1(ring1)} mm en su lado más fino): frágil al cortar y manipular. Aumenta el margen interior.`);
@@ -352,7 +363,7 @@ export function buildDesign(p) {
   if (gk > 0) {
     const gy = yF - gk, gw = 8;
     const gr = [tv.x0 + 1, tv.z0 + 1, tv.x1 - 1, tv.z1 - 1];
-    add({ id: 'G1', key: 'gasket', name: 'Burlete EPDM ' + gw + '×' + gk, role: 'burlete', mat: 'foam', step: 'burlete',
+    add({ id: 'G1', key: 'gasket', name: 'Burlete EPDM ' + gw + '×' + gk, role: 'burlete', mat: 'foam', step: 'burlete', cut: { L: r1(2 * (gr[2] - gr[0] + gr[3] - gr[1])), W: gw, T: gk, stock: 'espuma', notes: 'Cinta adhesiva en rollo' },
       solids: [{ plane: 'XZ', rect: gr, t: [gy, yF], holes: [{ rect: [gr[0] + gw, gr[1] + gw, gr[2] - gw, gr[3] - gw] }] }], explode: [0, 150, 0] });
   }
 
@@ -545,6 +556,7 @@ export function solidVolume(s) {
 // Medidas de corte de una pieza de tablero (el sólido mayor).
 export function pieceCut(pc) {
   if (pc.cut) return pc.cut;
+  if (!pc.solids) return { L: 0, W: 0, T: 0, stock: 'otro' };
   const s = pc.solids.reduce((m, so) => (rectArea(so.rect) > rectArea(m.rect) ? so : m), pc.solids[0]);
   const w = s.rect[2] - s.rect[0], h = s.rect[3] - s.rect[1];
   return { L: r1(Math.max(w, h)), W: r1(Math.min(w, h)), T: r1(Math.abs(s.t[1] - s.t[0]) * (pc.solids.length > 1 && pc.role === 'pared' ? 2 : 1)), stock: 'tablero' };

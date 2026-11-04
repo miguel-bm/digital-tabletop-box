@@ -50,7 +50,7 @@ export function planAssembly(d) {
   if (has('marco2')) add({
     key: 'marco2', title: 'Marco: capa superior (pozo)', flip: false, explode: 0.1,
     done: [...walls, ...byStep('listones'), ...byStep('caja'), ...byStep('marco'), ...byStep('tacos')], now: byStep('marco2'),
-    text: `Encola la segunda capa encima de la primera. Su ventana es ${f1(m.op2[2] - m.op2[0])} × ${f1(m.op2[3] - m.op2[1])} mm: deja un pozo de ${p.t} mm en el que el protector (${d.pieces.find(x => x.role === 'protector') ? d.pieces.find(x => x.role === 'protector').name : 'si lo pones'}) queda encajado y ${p.t - m.pt > 0 ? `${f1(p.t - m.pt)} mm por debajo del borde: los dados no se escapan` : 'enrasado'}. Usa el protector como plantilla para centrarla.`,
+    text: `${p.frame2Split ? 'La segunda capa son 4 listones: encola primero los dos largos (de punta a punta) y luego los cortos entre ellos, encima de la primera capa. Así las juntas no coinciden con las esquinas de abajo y todo sale de un solo tablero. La ventana que dejan' : 'Encola la segunda capa encima de la primera. Su ventana'} es ${f1(m.op2[2] - m.op2[0])} × ${f1(m.op2[3] - m.op2[1])} mm: deja un pozo de ${p.t} mm en el que el protector (${d.pieces.find(x => x.role === 'protector') ? d.pieces.find(x => x.role === 'protector').name : 'si lo pones'}) queda encajado y ${p.t - m.pt > 0 ? `${f1(p.t - m.pt)} mm por debajo del borde: los dados no se escapan` : 'enrasado'}. Usa el protector como plantilla para centrarla.`,
     access: 'Lija el conjunto del marco por fuera hasta que las dos capas y las paredes queden en un mismo plano.',
     hw: ['Cola D3', 'Puntas 1,2×25'],
   });

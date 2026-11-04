@@ -3,6 +3,7 @@ import { cutRows, packBoards, BOARD } from './cutlist.js';
 import { rectMinusRects, regionCells } from './geometry.js';
 import { planAssembly } from './assembly.js';
 import { PROTECTORS, COVERS, PLY } from './params.js';
+import { buildBOM } from './bom.js';
 
 // Planos A3 apaisados en SVG (unidades del viewBox = mm de papel).
 const W = 420, H = 297;
@@ -134,7 +135,7 @@ function sheetConjunto(d, n, total) {
   b += text(16, 22, 'PLANTA · 1:5', 4.2, 'font-weight="700"');
   b += text(16, 26.5, 'desde arriba; trazos: lo que queda dentro', 2.6, `fill="${MUTED}"`);
   const top = d.pieces.filter(pc => ['marco', 'piel'].includes(pc.role) && pc.solids[0].plane === 'XZ');
-  for (const pc of top) for (const so of pc.solids) b += solidOutline(so, X, Y, `stroke="${INK}" stroke-width="${pc.skin ? 0.15 : 0.4}" fill="${pc.id === 'F2' || (!m.twoLayer && pc.id === 'F1') ? '#f3f1ed' : 'none'}"`) + (so.holes || []).map(h => holeSVG(h, X, Y, s, `stroke="${INK}" stroke-width=".35" fill="#fff"`)).join('');
+  for (const pc of top) for (const so of pc.solids) b += solidOutline(so, X, Y, `stroke="${INK}" stroke-width="${pc.skin ? 0.15 : 0.4}" fill="${pc.step === 'marco2' || (!m.twoLayer && pc.id === 'F1') ? '#f3f1ed' : 'none'}"`) + (so.holes || []).map(h => holeSVG(h, X, Y, s, `stroke="${INK}" stroke-width=".35" fill="#fff"`)).join('');
   // aberturas y piezas interiores (ocultas)
   b += rect(X(m.op1[0]), Y(m.op1[1]), X(m.op1[2]), Y(m.op1[3]), `stroke="${INK}" stroke-width=".25" fill="#eef4f8"`);
   b += rect(X(-m.innerX / 2), Y(-m.innerZ / 2), X(m.innerX / 2), Y(m.innerZ / 2), `stroke="${MUTED}" stroke-width=".2" stroke-dasharray="1.5 1"`);
@@ -276,9 +277,9 @@ function sheetCorte(d, n, total) {
   const boards = packBoards(d);
   const p = d.params;
   let b = text(16, 20, `OPTIMIZACIÓN DE CORTE · tableros ${BOARD.W} × ${BOARD.H} × ${p.t} · sierra ${BOARD.kerf} mm · margen ${BOARD.edge}`, 4, 'font-weight="700"');
-  const s = Math.min((W - 40) / BOARD.W, 105 / BOARD.H);
+  const s = Math.min((W - 52) / 2 / BOARD.W, 120 / BOARD.H);
   boards.slice(0, 2).forEach((bd, k) => {
-    const ox = 20, oy = 28 + k * (BOARD.H * s + 18);
+    const ox = 20 + k * (BOARD.W * s + 12), oy = 30;
     b += text(ox, oy - 2, `Tablero ${k + 1}`, 3, 'font-weight="600"');
     b += rect(ox, oy, ox + BOARD.W * s, oy + BOARD.H * s, `fill="#efe7da" stroke="${INK}" stroke-width=".4"`);
     let used = 0;
@@ -290,7 +291,7 @@ function sheetCorte(d, n, total) {
         const hole = pc && pc.solids[0].holes && pc.solids[0].holes[0] && pc.solids[0].holes[0].rect;
         if (hole) { const r = pc.solids[0].rect; const rx = (hole[0] - r[0]) * s, ry = (hole[1] - r[1]) * s; b += rect(ox + pt.x * s + rx, oy + pt.y * s + ry, ox + pt.x * s + rx + (hole[2] - hole[0]) * s, oy + pt.y * s + ry + (hole[3] - hole[1]) * s, `fill="#efe7da" stroke="${INK}" stroke-width=".2" stroke-dasharray="1 .8"`); }
       }
-      const fs = Math.min(3.2, pt.h * s * 0.42);
+      const fs = Math.min(2.6, pt.h * s * 0.42, (pt.w * s) / 11);
       b += text(ox + (pt.x + pt.w / 2) * s, oy + (pt.y + pt.h / 2) * s + fs * 0.35, `${pt.id} · ${f1(pt.w)}×${f1(pt.h)}`, fs, `text-anchor="middle" font-family="JetBrains Mono, monospace"`);
     });
     b += text(ox + BOARD.W * s - 1, oy - 2, `aprovechamiento ${Math.round((used / (BOARD.W * BOARD.H)) * 100)} %`, 2.6, `text-anchor="end" fill="${MUTED}"`);
@@ -298,10 +299,10 @@ function sheetCorte(d, n, total) {
   if (boards.length > 2) b += text(20, 270, `+ ${boards.length - 2} tableros más (reduce tamaños o márgenes)`, 3, `fill="${DIM}"`);
   // listones: corte lineal en barras de 2400
   const sticks = [];
-  d.pieces.forEach(pc => { const c = pieceCut(pc); if (c.stock === 'taco') sticks.push({ id: pc.id, L: c.L, sec: `${f1(Math.min(c.W, c.T))}×${f1(Math.max(c.W, c.T))}` }); });
+  d.pieces.forEach(pc => { if (!pc.solids) return; const c = pieceCut(pc); if (c.stock === 'taco') sticks.push({ id: pc.id, L: c.L, sec: `${f1(Math.min(c.W, c.T))}×${f1(Math.max(c.W, c.T))}` }); });
   const bySec = {};
   sticks.forEach(st => (bySec[st.sec] = bySec[st.sec] || []).push(st));
-  let yy = 28 + Math.min(2, boards.length) * (BOARD.H * s + 18) + 2;
+  let yy = 30 + BOARD.H * s + 16;
   b += text(20, yy, 'LISTONES Y TACOS · barras de 2400 mm', 3.4, 'font-weight="700"');
   yy += 5;
   const bs = (W - 120) / 2400;
@@ -341,8 +342,9 @@ function sheetTaller(d, n, total) {
   });
   // herrajes
   if (y > H - 80) { x += colW + 12; y = 30; }
-  b += text(x, y + 2, 'HERRAJES', 3.4, 'font-weight="700"'); y += 6;
-  d.hw.forEach(h => { if (y > H - 36) return; b += text(x + 2, y, `${String(h.qty).replace('.', ',')}${h.u ? ' ' + h.u : ''} × ${h.name}`, 2.4); y += 3.1; });
+  const bom = buildBOM(d);
+  b += text(x, y + 2, `LISTA DE COMPRA · ≈ ${Math.round(bom.total)} €`, 3.4, 'font-weight="700"'); y += 6;
+  bom.items.forEach(h => { if (y > H - 36) return; b += rect(x + 1, y - 2.2, x + 3.4, y + 0.2, `stroke="${INK}" stroke-width=".2"`) + text(x + 5, y, `${String(h.qty).replace('.', ',')}${h.u ? ' ' + h.u : ''} × ${h.name}`, 2.35) + text(x + colW - 2, y, `${Math.round(h.cost)} €`, 2.35, `text-anchor="end" fill="${MUTED}"`); y += 3.1; });
   y += 3;
   if (y < H - 50) {
     b += text(x, y + 2, 'HERRAMIENTAS', 3.4, 'font-weight="700"'); y += 6;

@@ -81,13 +81,15 @@
 
     <footer class="dock">
       <div class="dock-row">
+        <span class="dock-label" data-icon="ruler" data-tip="Capas de cotas"></span>
+        <div class="chips" id="dim-layers"></div>
+        <span class="sep"></span>
         <span class="dock-label" data-icon="eye" data-tip="Mostrar / ocultar"></span>
         <div class="chips" id="vis-layers"></div>
       </div>
       <div class="dock-row">
         <label class="slider" data-tip="Separar las piezas"><span data-icon="explode"></span><input id="explode" type="range" min="0" max="1" step="0.01" value="0" /></label>
         <div class="chips">
-          <button class="chip icon" id="tg-dims" data-icon="ruler" data-tip="Cotas"></button>
           <button class="chip icon on" id="tg-edges" data-icon="edges" data-tip="Aristas"></button>
           <button class="chip icon" id="tg-xray" data-icon="xray" data-tip="Rayos X · X"></button>
           <button class="chip icon" id="tg-section" data-icon="section" data-tip="Corte por el centro · S"></button>

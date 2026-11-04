@@ -132,3 +132,6 @@ code { font: 12px var(--mono); color: var(--accent); }
 .gdone input { accent-color: var(--ok); }
 .gdone + .guide-min + #guide-close, .gdone ~ #guide-close { margin-left: 4px; }
 .guide-chapters button.done b { color: var(--ok); }
+.dock-row { overflow-x: auto; scrollbar-width: none; }
+.dock-row::-webkit-scrollbar { display: none; }
+.dock .chips { flex: none; }

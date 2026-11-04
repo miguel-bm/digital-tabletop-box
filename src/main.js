@@ -16,7 +16,7 @@ const eur = v => v.toLocaleString('es-ES', { style: 'currency', currency: 'EUR',
 
 // ───────── estado ─────────
 let params = { ...DEFAULTS };
-let ui = { hidden: ['tapa'], explode: 0, edges: true, xray: false, section: false, dims: true, tab: 'acabados', groupsOpen: ['caja', 'marco'], collapsed: [], lidOn: false };
+let ui = { dimLayers: ['general'], hidden: ['tapa'], explode: 0, edges: true, xray: false, section: false, dims: true, tab: 'acabados', groupsOpen: ['caja', 'marco'], collapsed: [], lidOn: false };
 try {
   const s = JSON.parse(localStorage.getItem(STORE_KEY));
   if (s) { params = { ...DEFAULTS, ...s.params }; ui = { ...ui, ...s.ui }; }
@@ -352,7 +352,18 @@ function renderReadouts() {
 }
 
 // ───────── dock ─────────
+const DIM_LAYERS = { general: 'Generales', pantalla: 'Pantalla y marco', construccion: 'Construcción', tv: 'Tele' };
+function renderDimChips() {
+  const host = $('#dim-layers');
+  host.innerHTML = '';
+  Object.entries(DIM_LAYERS).forEach(([k, l]) => {
+    const b = el('button', { className: 'chip dimchip' + (ui.dimLayers.includes(k) ? ' on' : ''), textContent: l });
+    b.addEventListener('click', () => { ui.dimLayers = ui.dimLayers.includes(k) ? ui.dimLayers.filter(x => x !== k) : [...ui.dimLayers, k]; b.classList.toggle('on'); save(); viewer.setDimLayers(new Set(ui.dimLayers)); });
+    host.append(b);
+  });
+}
 function renderDock() {
+  renderDimChips();
   const host = $('#vis-layers');
   host.innerHTML = '';
   Object.entries(LAYERS).forEach(([k, v]) => {
@@ -370,7 +381,6 @@ const tg = (id, key, fn) => { const b = $(id); b.classList.toggle('on', !!ui[key
 tg('#tg-edges', 'edges', v => viewer.setEdges(v));
 tg('#tg-xray', 'xray', v => viewer.setXray(v));
 tg('#tg-section', 'section', v => viewer.setSection(v));
-tg('#tg-dims', 'dims', v => viewer.setDimLayers(new Set(v ? ['general', 'pantalla'] : [])));
 tg('#tg-lid', 'lidOn', v => { if (v && !params.lid) commit({ ...params, lid: true }); if (v) { ui.hidden = ui.hidden.filter(x => x !== 'tapa'); renderDock(); viewer.setHidden(new Set(ui.hidden)); } viewer.setLid(v); });
 const mapSel = $('#map-style');
 mapSel.value = params.mapStyle;
@@ -589,7 +599,7 @@ viewer.setHidden(new Set(ui.hidden));
 viewer.setEdges(ui.edges);
 viewer.setXray(ui.xray);
 if (ui.section) viewer.setSection(true);
-viewer.setDimLayers(new Set(ui.dims ? ['general', 'pantalla'] : []));
+viewer.setDimLayers(new Set(ui.dimLayers || ['general']));
 viewer.view('persp', false);
 renderParams(false);
 renderSide();

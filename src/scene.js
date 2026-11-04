@@ -375,10 +375,12 @@ export class Viewer {
     const span = Math.max(M.outer.X, M.outer.Z * 1.6) * S;
     const cy = (M.H / 2) * S;
     let pos, target = new THREE.Vector3(0, cy, 0), ortho = true, up = new THREE.Vector3(0, 1, 0);
-    if (name === 'persp') { ortho = false; const w = this.host.clientWidth - ((this.insets || [0, 0])[0] + (this.insets || [0, 0])[1]), h = this.host.clientHeight - 190 - ((this.insets || [])[2] || 0);
-      const vf = THREE.MathUtils.degToRad(this.persp.fov) / 2, hf = Math.atan(Math.tan(vf) * Math.max(0.3, w / Math.max(200, h)));
-      const dist = Math.max((0.74 * span) / Math.tan(hf), (0.42 * span) / Math.tan(vf));
-      pos = new THREE.Vector3(-0.85, 1.35, 1.85).normalize().multiplyScalar(dist); target.set(0.04 * span, 0, 0.05 * span); }
+    if (name === 'persp') {
+      ortho = false;
+      target.set(0, (M.H * 0.35) * S, 0);
+      const dir = new THREE.Vector3(-0.85, 1.35, 1.85).normalize();
+      pos = target.clone().addScaledVector(dir, this.fitDistance(dir, target, M));
+    }
     else if (name === 'top') { pos = new THREE.Vector3(0, 3, 0.0001); up = new THREE.Vector3(0, 0, -1); }
     else if (name === 'front') { pos = new THREE.Vector3(0, cy, 3); }
     else if (name === 'side') { pos = new THREE.Vector3(3, cy, 0); }
@@ -388,6 +390,29 @@ export class Viewer {
     this.camera.up.copy(up);
     if (!animate) { this.camera.position.copy(pos); this.controls.target.copy(target); this.controls.update(); return; }
     this.camTween = { from: this.camera.position.clone(), to: pos, tf: this.controls.target.clone(), tt: target, t: 0 };
+  }
+  // distancia mínima para que la caja (y su tapa apoyada) quepa en el hueco libre entre paneles
+  fitDistance(dir, target, M) {
+    const w = this.host.clientWidth, h = this.host.clientHeight;
+    const [l, r, b = 0] = this.insets || [0, 0, 0];
+    const cam = this.persp.clone();
+    cam.aspect = w / h;
+    const shift = (l - r) / 2;
+    if (Math.abs(shift) > 1 || b > 1) cam.setViewOffset(w, h, -shift, b / 2, w, h); else cam.clearViewOffset();
+    cam.updateProjectionMatrix();
+    const hx = (M.outer.X / 2 + 40) * S, hz = (M.outer.Z / 2 + 40) * S, hy = (M.H + 20) * S;
+    const pts = [];
+    for (const x of [-hx, hx]) for (const y of [0, hy]) for (const z of [-hz, hz]) pts.push(new THREE.Vector3(x, y, z));
+    // márgenes en píxeles: barra superior (76), dock (104) y paneles
+    const xmin = -1 + 2 * (l + 24) / w, xmax = 1 - 2 * (r + 24) / w, ymin = -1 + 2 * (104 + b + 16) / h, ymax = 1 - 2 * (76 + 16) / h;
+    const ok = d => {
+      cam.position.copy(target).addScaledVector(dir, d); cam.lookAt(target); cam.updateMatrixWorld();
+      return pts.every(p => { const q = p.clone().project(cam); return q.x > xmin && q.x < xmax && q.y > ymin && q.y < ymax; });
+    };
+    let lo = 0.3, hi = 12;
+    if (!ok(hi)) return hi;
+    for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (ok(mid)) hi = mid; else lo = mid; }
+    return hi;
   }
   useCamera(cam) {
     if (this.camera === cam) return;

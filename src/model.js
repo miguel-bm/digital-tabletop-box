@@ -546,6 +546,14 @@ export function buildDesign(p) {
     { id: 'SW', a: [scr.x0, yTop + 4, scr.z0 - 30], b: [scr.x1, yTop + 4, scr.z0 - 30], label: 'Área visible', v: p.screenW, layer: 'pantalla' },
     { id: 'SH', a: [scr.x0 - 30, yTop + 4, scr.z0], b: [scr.x0 - 30, yTop + 4, scr.z1], label: 'Área visible', v: p.screenH, layer: 'pantalla' },
     { id: 'R1', a: [xo0, yTop + 4, 0], b: [op1[0], yTop + 4, 0], label: 'Marco', v: op1[0] - xo0, layer: 'pantalla' },
+    { id: 'R2', a: [0, yTop + 4, zo1], b: [0, yTop + 4, op1[3]], label: 'Marco frontal', v: zo1 - op1[3], layer: 'pantalla' },
+    { id: 'IX', a: [xi0, yBaseTop + 2, zi1 - 2], b: [xi1, yBaseTop + 2, zi1 - 2], label: 'Interior', v: innerX, layer: 'construccion' },
+    { id: 'IZ', a: [xi1 - 2, yBaseTop + 2, zi0], b: [xi1 - 2, yBaseTop + 2, zi1], label: 'Interior', v: innerZ, layer: 'construccion' },
+    { id: 'WH', a: [xo0 - ct - 40, y0, zo1 + ct], b: [xo0 - ct - 40, yF, zo1 + ct], label: 'Pared', v: wallH, layer: 'construccion' },
+    { id: 'FH', a: [xo0 - ct - 40, yF, zo1 + ct], b: [xo0 - ct - 40, yTop, zo1 + ct], label: 'Marco', v: yTop - yF, layer: 'construccion' },
+    { id: 'TW', a: [tv.x0, yS + 2, tv.z0 - 1], b: [tv.x1, yS + 2, tv.z0 - 1], label: 'Tele', v: p.tvW, layer: 'tv' },
+    { id: 'TH', a: [tv.x1 + 1, yS + 2, tv.z0], b: [tv.x1 + 1, yS + 2, tv.z1], label: 'Tele', v: p.tvH, layer: 'tv' },
+    { id: 'TD', a: [tv.x1 - 30, yB, tv.cz], b: [tv.x1 - 30, yS, tv.cz], label: 'Tele', v: p.tvD, layer: 'tv' },
   ];
 
   return { params: p, pieces, fixtures, hw, warnings, metrics, dims };

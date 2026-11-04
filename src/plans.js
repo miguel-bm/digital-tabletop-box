@@ -421,6 +421,52 @@ function sheetsMontaje(d, n0, total, shots) {
   return out;
 }
 
+// ───────── patrón del revestimiento ─────────
+function sheetRevestimiento(d, n, total) {
+  const p = d.params, m = d.metrics;
+  let b = text(16, 20, 'PATRÓN DEL REVESTIMIENTO', 5, 'font-weight="700"');
+  if (p.cover === 'ninguno') return sheet('Revestimiento', 'Sin revestimiento', n, total, b + text(16, 34, 'El diseño no lleva revestimiento: madera vista (aceite o barniz).', 3.4), d);
+  const ov = 20;                                       // solape arriba y abajo
+  const H0 = m.yTop - m.y0;                            // alto de las paredes + marco
+  const segs = [m.X / 2, m.Z, m.X, m.Z, m.X / 2];      // empieza en el centro de la pared del fondo
+  const names = ['Fondo (½)', 'Lateral izq.', 'Frente', 'Lateral der.', 'Fondo (½)'];
+  const Ltot = segs.reduce((s, v) => s + v, 0) + 30;   // + 30 de solape en la junta
+  const sc = (W - 40) / Ltot, ox = 20, oy = 44, hh = (H0 + 2 * ov) * sc;
+  b += text(16, 26, `${COVERS[p.cover].label}: una tira continua de ${f1(Ltot)} × ${f1(H0 + 2 * ov)} mm (escala 1:${Math.round(1 / sc)}). Junta en el centro de la pared del fondo, bajo el asa.`, 2.8, `fill="${MUTED}"`);
+  b += rect(ox, oy, ox + Ltot * sc, oy + hh, `fill="#f1efe9" stroke="${INK}" stroke-width=".4"`);
+  b += rect(ox, oy + ov * sc, ox + Ltot * sc, oy + hh - ov * sc, `fill="#e4e1d9" stroke="none"`);
+  let x = 0;
+  segs.forEach((L, i) => {
+    const xa = ox + x * sc;
+    if (i) {
+      b += `<line x1="${xa}" y1="${oy}" x2="${xa}" y2="${oy + hh}" stroke="${DIM}" stroke-width=".3" stroke-dasharray="1.5 1"/>`;
+      // cortes en V en las esquinas (arriba y abajo) para doblar el solape
+      b += `<path d="M${xa - ov * sc} ${oy} L${xa} ${oy + ov * sc} L${xa + ov * sc} ${oy}" stroke="${INK}" stroke-width=".3"/><path d="M${xa - ov * sc} ${oy + hh} L${xa} ${oy + hh - ov * sc} L${xa + ov * sc} ${oy + hh}" stroke="${INK}" stroke-width=".3"/>`;
+    }
+    b += text(xa + (L * sc) / 2, oy + hh / 2 + 1, names[i], 3, 'text-anchor="middle"');
+    b += dim(xa, oy + hh, xa + L * sc, oy + hh, -5, f1(L), { size: 2.4 });
+    x += L;
+  });
+  b += `<line x1="${ox + x * sc}" y1="${oy}" x2="${ox + x * sc}" y2="${oy + hh}" stroke="${DIM}" stroke-width=".3" stroke-dasharray="1.5 1"/>`;
+  b += text(ox + (x + 15) * sc, oy - 2, 'solape 30', 2.4, `text-anchor="middle" fill="${MUTED}"`);
+  b += dim(ox + Ltot * sc, oy, ox + Ltot * sc, oy + hh, -5, f1(H0 + 2 * ov), { size: 2.4 });
+  b += text(ox, oy + hh + 16, 'Líneas discontinuas: esquinas (pliegue). Franja oscura: la pared; las franjas claras de 20 mm se doblan: arriba sobre el marco, abajo hacia dentro hasta el listón (sin tapar el apoyo de la base).', 2.6, `fill="${MUTED}"`);
+  // huecos a recortar en la tira
+  let hy = oy + hh + 26;
+  b += text(16, hy, 'RECORTAR DESPUÉS DE PEGAR (cúter por el borde del hueco de la madera)', 3.2, 'font-weight="700"'); hy += 5;
+  const tags = new Map();
+  d.pieces.filter(pc => pc.skin).forEach(pc => (pc.solids[0].holes || []).forEach(h => { if (h.tag) tags.set(pc.name + ': ' + h.tag, (tags.get(pc.name + ': ' + h.tag) || 0) + 1); }));
+  [...tags.entries()].slice(0, 12).forEach(([k, v]) => { b += text(18, hy, `· ${v > 1 ? v + '× ' : ''}${k}`, 2.6); hy += 3.6; });
+  if (p.frameFinish === 'mismo') {
+    hy += 4;
+    const fw = m.X + 2 * ov, fz = m.Z + 2 * ov;
+    b += text(16, hy, `MARCO FORRADO: una pieza de ${f1(fw)} × ${f1(fz)} mm; corta la ventana dejando 15 mm para doblar hacia dentro y pinta de negro el canto interior antes.`, 2.8); hy += 5;
+  }
+  const area = (Ltot * (H0 + 2 * ov) + (p.frameFinish === 'mismo' ? (m.X + 40) * (m.Z + 40) : 0)) * 1e-6;
+  b += text(16, Math.min(H - 36, hy + 6), `Material: ${f1(area)} m² netos. Los rollos son de 1,37–1,40 m de ancho: sin juntas necesitas ${f1(Math.ceil((Ltot + 100) / 100) / 10)} m lineales; cortando la tira en 3 trozos con las juntas en esquinas, basta con ${f1(Math.ceil(((H0 + 2 * ov) * 3 + (p.frameFinish === 'mismo' ? m.Z + 40 : 0) + 100) / 100) / 10)} m.`, 2.8, 'font-weight="600"');
+  return sheet('Revestimiento', 'Tira continua con pliegues y cortes de esquina', n, total, b, d);
+}
+
 // ───────── plantillas 1:1 por trozos de A3 ─────────
 function sheetsPlantillas(d) {
   const pick = d.pieces.filter(pc => ['R1', 'W1', 'W2', 'W3', 'W4', 'A1'].includes(pc.id) || (pc.id === 'H1'));
@@ -472,14 +518,14 @@ export function buildSheets(d, set, snap) {
   const nDes = (() => { const rows = cutRows(d).filter(r => r.stock !== 'espuma'); const big = rows.filter(r => r.L > 500 && r.W > 60).length; return Math.ceil(big / 4) + Math.ceil((rows.length - big) / 9); })();
   const nMont = Math.ceil(planAssembly(d).length / 6);
   const nCor = Math.max(1, Math.ceil(packBoards(d).length / 2));
-  const total = 1 + nDes + nCor + 1 + 1 + nMont;
-  const pg = { conj: 1, des: 2, corte: 2 + nDes, taller: 2 + nDes + nCor, expl: 3 + nDes + nCor, mont: 4 + nDes + nCor };
+  const total = 1 + nDes + nCor + 2 + 1 + nMont;
+  const pg = { conj: 1, des: 2, corte: 2 + nDes, taller: 2 + nDes + nCor, expl: 4 + nDes + nCor, mont: 5 + nDes + nCor };
   const s = snap || {};
   if (set === 'conjunto') return [sheetConjunto(d, pg.conj, total), sheetExplosion(d, pg.expl, total, s.explosion || (Array.isArray(snap) ? null : snap))];
   if (set === 'despiece') return sheetsDespiece(d, pg.des, total);
   if (set === 'corte') return sheetsCorte(d, pg.corte, total);
-  if (set === 'taller') return [sheetTaller(d, pg.taller, total)];
+  if (set === 'taller') return [sheetTaller(d, pg.taller, total), sheetRevestimiento(d, pg.taller + 1, total)];
   if (set === 'montaje') return sheetsMontaje(d, pg.mont, total, Array.isArray(snap) ? snap : s.montaje);
   if (set === 'plantillas') return sheetsPlantillas(d);
-  return [sheetConjunto(d, pg.conj, total), ...sheetsDespiece(d, pg.des, total), ...sheetsCorte(d, pg.corte, total), sheetTaller(d, pg.taller, total), sheetExplosion(d, pg.expl, total, s.explosion), ...sheetsMontaje(d, pg.mont, total, s.montaje)];
+  return [sheetConjunto(d, pg.conj, total), ...sheetsDespiece(d, pg.des, total), ...sheetsCorte(d, pg.corte, total), sheetTaller(d, pg.taller, total), sheetRevestimiento(d, pg.taller + 1, total), sheetExplosion(d, pg.expl, total, s.explosion), ...sheetsMontaje(d, pg.mont, total, s.montaje)];
 }

@@ -17,7 +17,7 @@ export const DEFAULTS = {
   footH: 8, feet: 6,
 
   // ── marco y protector ──
-  frame: 'rebaje', frame2Split: true, reveal: 1, protector: 'acrilico4', protOverlap: 10,
+  frame: 'rebaje', frame2Split: true, pockets: false, reveal: 1, protector: 'acrilico4', protOverlap: 10,
 
   // ── soporte de la tele ──
   mount: 'vesa', railW: 40, railH: 20, hangerW: 20,
@@ -103,6 +103,7 @@ export const SCHEMA = [
   { id: 'marco', label: 'Marco y protector', icon: 'frame', params: [
     { k: 'frame', l: 'Tipo de marco', type: 'select', opts: { rebaje: 'Doble capa con pozo para el protector', simple: 'Simple (protector pinzado bajo el marco)' } },
     { k: 'frame2Split', l: 'Capa superior en 4 listones (ahorra un tablero)', type: 'bool' },
+    { k: 'pockets', l: 'Bolsillos para dados en el marco (necesita margen ≥ 40)', type: 'bool' },
     { k: 'reveal', l: 'Holgura sobre área visible', u: 'mm', min: -5, max: 10, step: 0.5 },
     { k: 'protector', l: 'Protector de pantalla', type: 'select', opts: Object.fromEntries(Object.entries(PROTECTORS).map(([k, v]) => [k, v.label])) },
     { k: 'protOverlap', l: 'Apoyo del protector en el marco', u: 'mm', min: 4, max: 30, step: 1 },
@@ -143,7 +144,7 @@ export const PARAM_INDEX = Object.fromEntries(SCHEMA.flatMap(g => g.params.map(p
 export const PRESETS = [
   { id: 'maleta', label: 'Maleta', sub: 'tolex negro, asa, cantoneras', p: { frame: 'rebaje', cover: 'tolex', coverColor: '#232325', frameFinish: 'negro', handle: 'maleta', corners: true, lid: false, margin: 20, protector: 'acrilico4' } },
   { id: 'flight', label: 'Flight case', sub: 'con tapa y cierres', p: { frame: 'rebaje', cover: 'tolex', coverColor: '#2e2f31', frameFinish: 'negro', handle: 'maleta', corners: true, lid: true, latches: 4, margin: 20, protector: 'acrilico4' } },
-  { id: 'taberna', label: 'Taberna', sub: 'madera vista y terciopelo', p: { frame: 'rebaje', cover: 'terciopelo', coverColor: '#4a1f24', frameFinish: 'madera', handle: 'laterales', corners: false, lid: false, margin: 60, protector: 'vidrio4' } },
+  { id: 'taberna', label: 'Taberna', sub: 'madera vista y terciopelo', p: { frame: 'rebaje', cover: 'terciopelo', coverColor: '#4a1f24', frameFinish: 'madera', handle: 'laterales', corners: false, lid: false, margin: 60, protector: 'vidrio4', pockets: true } },
   { id: 'minimal', label: 'Mínima', sub: 'lo más fina y ligera', p: { frame: 'simple', cover: 'pintura', coverColor: '#2b2d30', frameFinish: 'negro', handle: 'ninguna', corners: false, lid: false, margin: 8, protector: 'ninguno', gapBelow: 22, cornerBlocks: true } },
   { id: 'cuero', label: 'Biblioteca', sub: 'polipiel marrón, asa embutida', p: { frame: 'rebaje', cover: 'polipiel', coverColor: '#5b3a26', frameFinish: 'madera', handle: 'embutida', corners: true, lid: false, margin: 30, protector: 'acrilico5' } },
 ];

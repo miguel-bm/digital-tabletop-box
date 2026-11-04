@@ -216,10 +216,14 @@ export class Viewer {
       [-1, 1].forEach(s => add(new THREE.BoxGeometry(26, 34, 8), m.get('metal'), x + s * f.span / 2, y, z - 4));
       grp.userData.explode = [0, 0, -120];
     } else if (f.kind === 'dish') {
-      const dish = f.axis === 'z' ? new THREE.BoxGeometry(f.w, f.h, 3) : new THREE.BoxGeometry(3, f.h, f.w);
-      add(dish, m.get('metal'), x, y, z);
-      const bar = f.axis === 'z' ? new THREE.BoxGeometry(f.w * 0.7, 10, 10) : new THREE.BoxGeometry(10, 10, f.w * 0.7);
-      add(bar, m.get('plastic'), x + (f.axis === 'x' ? f.sgn * 6 : 0), y + f.h * 0.15, z + (f.axis === 'z' ? 6 : 0));
+      // asa embutida: brida metálica, cazo oscuro y barra
+      const ax = f.axis === 'x';
+      const dims = (a, b, c) => (ax ? [c, b, a] : [a, b, c]);
+      const out = ax ? -f.sgn : -1;   // hacia fuera de la pared
+      const plate = add(new RoundedBoxGeometry(...dims(f.w, f.h, 2.5), 2, 4), m.get('metal'), x + (ax ? out * 1.2 : 0), y, z + (ax ? 0 : out * 1.2));
+      const recess = add(new RoundedBoxGeometry(...dims(f.w - 18, f.h - 16, 1), 2, 6), m.get('plastic'), x + (ax ? out * 2.6 : 0), y, z + (ax ? 0 : out * 2.6));
+      const bar = add(new RoundedBoxGeometry(...dims(f.w - 40, 9, 7), 2, 3), m.get('rubber'), x + (ax ? out * 3.5 : 0), y + f.h * 0.12, z + (ax ? 0 : out * 3.5));
+      [plate, recess, bar].forEach(o => (o.castShadow = false));
     } else if (f.kind === 'corner') {
       const [sx, sy, sz] = f.s, L = 32, th = 1.5;
       const mat = m.get('metal');
@@ -285,6 +289,15 @@ export class Viewer {
     const d6 = new THREE.Mesh(new RoundedBoxGeometry(16, 16, 16, 2, 2.5), new THREE.MeshStandardMaterial({ color: 0xe9e4d8, roughness: 0.4 }));
     d6.position.set(m.tv.cx + 285, top + 8, 165); d6.rotation.y = 0.5; d6.castShadow = true;
     g.add(d20, d6);
+    // dados en los bolsillos del marco
+    (m.pockets || []).forEach((r, i) => {
+      const y = m.yF + d.params.t;
+      for (let k = 0; k < 3; k++) {
+        const die = k === 1 ? new THREE.Mesh(new THREE.OctahedronGeometry(8), new THREE.MeshStandardMaterial({ color: [0x2e4f7a, 0x7a2e2e][i % 2], roughness: 0.35 })) : new THREE.Mesh(new RoundedBoxGeometry(14, 14, 14, 2, 2), new THREE.MeshStandardMaterial({ color: [0xe9e4d8, 0x1c1c1c][(i + k) % 2], roughness: 0.4 }));
+        die.position.set((r[0] + r[2]) / 2 + (k - 1) * 3, y + 7, r[1] + 40 + k * 55);
+        die.rotation.set(k, k * 0.7, 0.3); die.castShadow = true; g.add(die);
+      }
+    });
     this.fx.add(g);
   }
 

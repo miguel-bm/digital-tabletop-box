@@ -65,6 +65,7 @@ export function buildDesign(p) {
   const outerRect = [xo0, zo0, xo1, zo1];
   const ring1 = ring(outerRect, op1);
   const ring2 = op2 ? ring(outerRect, op2) : null;
+  let pocketsInfo = null;
 
   // ── uniones de esquina ──
   // Las paredes largas (frente/fondo) van de punta a punta; las laterales entre ellas.
@@ -196,17 +197,29 @@ export function buildDesign(p) {
   const irF2 = irCovered && op2 && irPos[1] > op2[3] ? [{ circle: [irPos[0], irPos[1], 5], tag: 'Ventana IR Ø10' }] : [];
   add({ id: 'F1', key: 'frame1', name: twoLayer ? 'Marco · capa inferior (labio)' : 'Marco', role: 'marco', mat: twoLayer ? 'black' : frameMat, step: 'marco',
     solids: [{ plane: 'XZ', rect: outerRect, t: [yF, yF + t], holes: [{ rect: op1 }, ...irF1] }], explode: [0, 200, 0] });
+  // bolsillos para dados en los listones laterales (el labio de la capa 1 hace de fondo)
+  let pocketHoles = [];
+  if (p.pockets && !twoLayer) warn('info', 'Los bolsillos para dados solo existen con el marco doble (el labio de la capa inferior hace de fondo).');
+  if (p.pockets && twoLayer) {
+    const pw = ring2 - 2 * 10, pl = Math.min(220, (op2[3] - op2[1]) - 80);
+    if (pw >= 28) {
+      const zc = (op2[1] + op2[3]) / 2;
+      pocketHoles = [{ rect: [xo0 + 10, zc - pl / 2, op2[0] - 10, zc + pl / 2], tag: 'Bolsillo dados ' + Math.round(pw) + '×' + Math.round(pl) }, { rect: [op2[2] + 10, zc - pl / 2, xo1 - 10, zc + pl / 2], tag: 'Bolsillo dados ' + Math.round(pw) + '×' + Math.round(pl) }];
+      pocketsInfo = { pw, pl, zc };
+      hw.push({ g: 'Acabado', name: 'Fieltro adhesivo para el fondo de los bolsillos', qty: 1, unit: 3 });
+    } else warn('warn', `Los bolsillos para dados necesitan un marco más ancho: el listón lateral del pozo mide ${r1(ring2)} mm (hacen falta ≥ 48). Sube el margen interior.`);
+  }
   if (twoLayer && !p.frame2Split) {
     add({ id: 'F2', key: 'frame2', name: 'Marco · capa superior (pozo)', role: 'marco', mat: frameMat, step: 'marco2',
-      solids: [{ plane: 'XZ', rect: outerRect, t: [yF + t, yF + 2 * t], holes: [{ rect: op2 }, ...irF2] }], explode: [0, 280, 0] });
+      solids: [{ plane: 'XZ', rect: outerRect, t: [yF + t, yF + 2 * t], holes: [{ rect: op2 }, ...irF2, ...pocketHoles] }], explode: [0, 280, 0] });
   } else if (twoLayer) {
     // 4 listones: los largos de punta a punta, los cortos entre ellos (juntas desfasadas respecto a la capa 1)
     const yy = [yF + t, yF + 2 * t];
     const strips = [
       ['F2', 'Marco · pozo, listón del fondo', [xo0, zo0, xo1, op2[1]], irF2.filter(h => h.circle[1] < op2[1])],
       ['F3', 'Marco · pozo, listón frontal', [xo0, op2[3], xo1, zo1], irF2.filter(h => h.circle[1] > op2[3])],
-      ['F4', 'Marco · pozo, listón izquierdo', [xo0, op2[1], op2[0], op2[3]], []],
-      ['F5', 'Marco · pozo, listón derecho', [op2[2], op2[1], xo1, op2[3]], []],
+      ['F4', 'Marco · pozo, listón izquierdo', [xo0, op2[1], op2[0], op2[3]], pocketHoles.slice(0, 1)],
+      ['F5', 'Marco · pozo, listón derecho', [op2[2], op2[1], xo1, op2[3]], pocketHoles.slice(1, 2)],
     ];
     strips.forEach(([id, name, r, holes]) => add({ id, key: 'frame2' + id, name, role: 'marco', mat: frameMat, step: 'marco2',
       solids: [{ plane: 'XZ', rect: r, t: yy, holes }], explode: [0, 280, 0] }));
@@ -509,7 +522,8 @@ export function buildDesign(p) {
   if (coverAreaReal && p.cover !== 'pintura') hw.push({ g: 'Acabado', name: 'Cola de contacto (bote 500 ml)', qty: Math.ceil(coverAreaReal / 1.6), unit: 9 });
   if (p.frameFinish === 'negro' || twoLayer) hw.push({ g: 'Acabado', name: 'Pintura negra mate (marco y labio interior, antirreflejos)', qty: 1, unit: 7 });
 
-  if (mass.total > 22) warn('warn', `Peso total ${r1(mass.total)} kg: es mucho para una sola asa. Considera dos asas laterales o una tapa más ligera.`);
+  if (mass.total > 24) warn('warn', `Peso total ${r1(mass.total)} kg: pesado para llevar con una mano. Considera dos asas laterales, chopo en vez de abedul o metacrilato en vez de vidrio.`);
+  else if (mass.total > 18) warn('info', `Peso total ${r1(mass.total)} kg: se lleva con una mano, pero mejor con el asa bien atornillada y sin balancearla.`);
   if (prot.mat === 'glass') warn('info', `El vidrio templado añade ${r1(kgProt)} kg y no se puede cortar después de templar: pídelo a medida (${r1(protRect[2] - protRect[0])} × ${r1(protRect[3] - protRect[1])}).`);
   if (!p.vents && !p.fans) warn('warn', 'Sin rejillas ni ventiladores la tele (≈ 54 W) se calienta dentro de la caja. Activa al menos las rejillas.');
   if (p.gasket === 0) warn('info', 'Sin burlete, el marco apoya directamente en el bisel de la tele: puede marcarlo o vibrar.');
@@ -521,7 +535,7 @@ export function buildDesign(p) {
     X, Z, H, outer, innerX, innerZ, wallH, g, gL, gR, ring1, ring2, y0, yBaseTop, yB, yS, yF, yTop, yRim,
     mass, coverArea: coverAreaReal, op1, op2, protRect, tv, scr, bezelTop, bezelSide, vol,
     pxPerMm: px, inchPx: 25.4 * px, gridCells: [Math.floor(p.screenW / 25.4), Math.floor(p.screenH / 25.4)],
-    railX, vz, screwPts, twoLayer, pt, ct, cy, cz, portWall,
+    railX, vz, screwPts, twoLayer, pt, ct, cy, cz, portWall, pockets: pocketHoles.map(h => h.rect),
   };
 
   // cotas para la escena y los planos

@@ -153,10 +153,11 @@ function grid(a, b, breaks, h) {
 
 export function buildMesh(spec, h = 35) {
   const { X, Z, t, y0, yF, layers, op1, op2, screws, ply, feet, hangers, handleX, baseOn, tvKg, protKg, mount, foamPts, handleMode } = spec;
+  const ribs = spec.ribs || [];
   const Xm = X / 2 - t / 2, Zm = Z / 2 - t / 2;
   const yb = y0 + t / 2, yf = yF + (layers * t) / 2;
-  const xb = [op1[0], op1[2], ...(op2 ? [op2[0], op2[2]] : []), ...hangers.map(p => p[0]), ...handleX];
-  const zb = [op1[1], op1[3], ...(op2 ? [op2[1], op2[3]] : [])];
+  const xb = [op1[0], op1[2], ...(op2 ? [op2[0], op2[2]] : []), ...hangers.map(p => p[0]), ...handleX, ...ribs.flatMap(r => [r.x0, r.x1]), ...(mount === 'base' ? (foamPts || []).map(p => p[0]) : [])];
+  const zb = [op1[1], op1[3], ...(op2 ? [op2[1], op2[3]] : []), ...ribs.flatMap(r => [r.z - r.w / 2, r.z + r.w / 2])];
   const xs = grid(-Xm, Xm, xb, h), zs = grid(-Zm, Zm, zb, h);
   const ys = grid(yb, yf, [(yb + yf) / 2], Math.min(h, (yf - yb) / 3));
   const nodes = [], key = new Map();
@@ -190,7 +191,9 @@ export function buildMesh(spec, h = 35) {
   const baseNodes = [];
   if (baseOn) {
     for (let i = 0; i < xs.length - 1; i++) for (let j = 0; j < zs.length - 1; j++) {
-      els.push({ n: [node(xs[i], yb, zs[j], 'b'), node(xs[i + 1], yb, zs[j], 'b'), node(xs[i + 1], yb, zs[j + 1], 'b'), node(xs[i], yb, zs[j + 1], 'b')], mat: plyMat(t), part: 'base' });
+      const cx = (xs[i] + xs[i + 1]) / 2, cz = (zs[j] + zs[j + 1]) / 2;
+      const rib = ribs.find(r => cx > r.x0 && cx < r.x1 && Math.abs(cz - r.z) < r.w / 2);
+      els.push({ n: [node(xs[i], yb, zs[j], 'b'), node(xs[i + 1], yb, zs[j], 'b'), node(xs[i + 1], yb, zs[j + 1], 'b'), node(xs[i], yb, zs[j + 1], 'b')], mat: plyMat(rib ? rib.tEq : t), part: rib ? 'costilla' : 'base' });
     }
   }
   const nearest = (x, y, z, ns = '') => {
@@ -339,7 +342,8 @@ export function runFem(spec, caseId, h, onProgress) {
   const lc = { g: { dir: [0, -1, 0], factor: 1 }, points: [], fix: [] };
   const fixAll = n => [0, 1, 2, 3, 4, 5].forEach(c => lc.fix.push({ n, c }));
   const tvLoad = (dir, factor) => {
-    if (spec.mount === 'espuma' && mesh.foamPts.length && mesh.foamPts[0] >= 0) mesh.foamPts.forEach(n => lc.points.push({ n, f: dir.map(v => (v * tvN * factor) / mesh.foamPts.length) }));
+    if (spec.mount === 'base' && !(mesh.foamPts.length && mesh.foamPts[0] >= 0)) { /* sin base no hay tele: va atornillada a ella */ }
+    else if ((spec.mount === 'espuma' || spec.mount === 'base') && mesh.foamPts.length && mesh.foamPts[0] >= 0) mesh.foamPts.forEach(n => lc.points.push({ n, f: dir.map(v => (v * tvN * factor) / mesh.foamPts.length) }));
     else mesh.hangers.forEach(n => lc.points.push({ n, f: dir.map(v => (v * tvN * factor) / mesh.hangers.length) }));
     // protector: reparte en el labio del marco
     const lip = [];

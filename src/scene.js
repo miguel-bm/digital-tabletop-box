@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { solidGeometry } from './geometry.js';
+import { tvProfile } from './model.js';
 import { DimLayer, fmt } from './dims3d.js';
 import { MaterialFactory, mapCanvas } from './materials.js';
 import { Q } from './quality.js';
@@ -17,7 +18,7 @@ export const LAYERS = {
   protector: { label: 'Protector', roles: ['protector'] },
   tv: { label: 'Tele', roles: ['tv'] },
   interior: { label: 'Listones y tacos', roles: ['liston', 'taco', 'travesano', 'espuma'] },
-  base: { label: 'Base', roles: ['base'] },
+  base: { label: 'Base', roles: ['base', 'costilla'] },
   piel: { label: 'Revestimiento', roles: ['piel'] },
   herrajes: { label: 'Herrajes', roles: ['fixture'] },
   tapa: { label: 'Tapa', roles: ['tapa'] },
@@ -186,11 +187,11 @@ export class Viewer {
     const tv = pc.tv, p = d.params;
     const w = tv.x1 - tv.x0, h = tv.z1 - tv.z0;
     const bodyMat = this.mats.get('tvback'), bezel = this.mats.get('plastic');
-    const rimT = tv.yS - tv.yRim;
-    const rim = new THREE.Mesh(new RoundedBoxGeometry(w, rimT, h, 2, 3), [bezel, bezel, bezel, bodyMat, bezel, bezel]);
-    rim.position.set((tv.x0 + tv.x1) / 2, tv.yRim + rimT / 2, (tv.z0 + tv.z1) / 2);
-    const bump = new THREE.Mesh(new RoundedBoxGeometry(tv.bump.w, tv.yRim - tv.yB + 4, tv.bump.h, 3, 14), bodyMat);
-    bump.position.set(tv.bump.cx, (tv.yB + tv.yRim + 4) / 2, tv.bump.cz);
+    // carcasa: frente plano (bisel) y trasera abombada según el perfil medido
+    const prof = tvProfile(p, tv);
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(w, 2, h), bezel);
+    rim.position.set((tv.x0 + tv.x1) / 2, tv.yS - 1, (tv.z0 + tv.z1) / 2);
+    const bump = new THREE.Mesh(tvShellGeometry(tv, prof), [bodyMat, bezel]);
     const mapTex = new THREE.CanvasTexture(mapCanvas(p.mapStyle, d.metrics.inchPx));
     mapTex.colorSpace = THREE.SRGBColorSpace; mapTex.anisotropy = 8;
     this.mapTex && this.mapTex.dispose(); this.mapTex = mapTex;
@@ -204,7 +205,8 @@ export class Viewer {
     const vm = this.mats.get('darkmetal');
     const vg = new THREE.CylinderGeometry(6, 6, 2, 12);
     [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => {
-      const m = new THREE.Mesh(vg, vm); m.position.set(tv.vesa.x + a * tv.vesa.s / 2, tv.yB - 0.5, tv.vesa.z + b * tv.vesa.s / 2); g.add(m);
+      const vx = tv.vesa.x + a * tv.vesa.s / 2, vz = tv.vesa.z + b * tv.vesa.s / 2;
+      const m = new THREE.Mesh(vg, vm); m.position.set(vx, tv.yS - prof.depth(vx, vz) - 0.5, vz); g.add(m);
     });
     // logo
     [rim, bump, screen].forEach(m => { m.castShadow = true; m.receiveShadow = true; m.userData.piece = pc; g.add(m); });
@@ -605,4 +607,39 @@ export class Viewer {
   }
 
   png() { return this.renderer.domElement.toDataURL('image/png'); }
+}
+
+// Trasera curva de la tele como malla: una superficie (x, z) → y = pantalla − fondo, más el canto.
+function tvShellGeometry(tv, prof) {
+  const nx = 72, nz = 44;
+  const xs = [], zs = [];
+  for (let i = 0; i <= nx; i++) xs.push(tv.x0 + (tv.x1 - tv.x0) * i / nx);
+  for (let j = 0; j <= nz; j++) zs.push(tv.z0 + (tv.z1 - tv.z0) * j / nz);
+  const pos = [], idx = [], side = [];
+  const yTop = tv.yS - 2;
+  xs.forEach(x => zs.forEach(z => pos.push(x, tv.yS - prof.depth(x, z), z)));
+  const id = (i, j) => i * (nz + 1) + j;
+  for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+    const a = id(i, j), b = id(i + 1, j), c = id(i + 1, j + 1), d = id(i, j + 1);
+    idx.push(a, b, c, a, c, d);   // normal hacia abajo (−y)
+  }
+  // canto: del borde de la trasera a la cara de la pantalla
+  const ring = [];
+  for (let i = 0; i <= nx; i++) ring.push([i, 0]);
+  for (let j = 1; j <= nz; j++) ring.push([nx, j]);
+  for (let i = nx - 1; i >= 0; i--) ring.push([i, nz]);
+  for (let j = nz - 1; j >= 1; j--) ring.push([0, j]);
+  const base = pos.length / 3;
+  ring.forEach(([i, j]) => { const k = id(i, j) * 3; pos.push(pos[k], pos[k + 1], pos[k + 2], pos[k], yTop, pos[k + 2]); });
+  for (let r = 0; r < ring.length; r++) {
+    const a = base + r * 2, b = base + ((r + 1) % ring.length) * 2;
+    side.push(a, a + 1, b + 1, a, b + 1, b);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex([...idx, ...side]);
+  g.addGroup(0, idx.length, 0);
+  g.addGroup(idx.length, side.length, 1);
+  g.computeVertexNormals();
+  return g;
 }

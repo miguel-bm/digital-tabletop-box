@@ -15,18 +15,21 @@ npm test         # barrido de todas las opciones + comprobación de solapes
 
 ## El diseño en una frase
 
-Un cajón de contrachapado con las cuatro paredes y un marco de una o dos capas **encolados**, y una
-**base atornillada** que es la tapa de servicio: todo se monta boca abajo, la tele entra por detrás,
-apoya la pantalla en un burlete bajo el marco y cuelga de dos **travesaños VESA** atornillados a
-cuatro tacos encolados al marco. Quitando la base se llega a cables y tele sin tocar nada más.
+Un cajón de contrachapado con las cuatro paredes, cuatro **postes de esquina** y un marco de una capa
+**encolados**, y una **base atornillada** que es la tapa de servicio. La tele se **atornilla a la base por
+sus 4 roscas VESA** a través de dos **costillas de punta a punta** encoladas a la base; unas patas
+centrales bajo esas costillas llevan su peso directo a la mesa. Los listones del perímetro van enteros
+y el protector de metacrilato cubre toda la caja, atornillado a los postes. Todo se monta boca abajo:
+la tele entra por detrás y apoya la pantalla en un burlete bajo el marco.
 
 ## Qué hay en la app
 
-- **Modelo 3D paramétrico**: tele (con joroba, puertos y receptor IR), paredes, marco (simple o doble
-  con pozo para el protector, la capa superior en 4 listones para sacar todo de un tablero),
-  base extraíble con ventilación, listones, tacos, travesaños VESA, cables, revestimiento, herrajes y tapa.
+- **Modelo 3D paramétrico**: tele con su trasera abombada (borde fino, zona de fondo máximo y curvas
+  entre ambas, como la serie M de Samsung), puertos y receptor IR; paredes, postes, marco (simple con
+  el protector encima, doble con pozo o simple con el protector debajo), base extraíble con costillas
+  VESA y ventilación, listones, cables, revestimiento, herrajes y tapa.
 - **Opciones**: uniones (a tope, galce, dedos), márgenes, marco y protector (metacrilato, policarbonato,
-  vidrio), sujeción (VESA o espuma), fijación de la base, salida de cables (pasamuros, conectores de
+  vidrio), sujeción (VESA a la base, travesaños VESA colgados del marco o espuma), fijación de la base, salida de cables (pasamuros, conectores de
   panel, ranura), ventilación y ventiladores USB, altavoces, asas, cantoneras, tapa de transporte,
   bolsillos para dados y acabados (tolex, polipiel, terciopelo, fieltro, corcho, pintura, madera vista).
 - **Puntos de partida**: Maleta, Flight case, Taberna, Mínima, Biblioteca.
@@ -57,9 +60,12 @@ cuatro tacos encolados al marco. Quitando la base se llega a cables y tele sin t
 ## Conclusiones de los cálculos (diseño por defecto)
 
 - **Resistencia**: de sobra. La tensión máxima en el contrachapado es ~2 MPa (rotura ~60 MPa).
-- **Rigidez**: el punto débil es la **torsión**. En una mesa coja la esquina sin apoyo baja ~10 mm;
-  sin la base, ~28 mm. Con menos de 8 tornillos la base deja de trabajar. 12 mm de tablero la bajaría a ~8 mm.
-- **Protector**: un metacrilato de 4 mm en el pozo (13 mm sobre la pantalla) llega a tocarla con
+- **Rigidez**: el punto débil es la **torsión**. En una mesa coja la esquina sin apoyo baja ~5 mm
+  (antes, con la tele colgada del marco, ~11 mm); sin la base, ~25 mm. La segunda capa de marco la
+  dejaría en ~1,8 mm a cambio de 0,8 kg más. Con menos de 8 tornillos la base deja de trabajar.
+- **Costillas VESA**: un golpe de 3 g al dejarla dobla la costilla ~2 mm sin contar las patas centrales
+  (coef. de seguridad ~11); con las patas apoyadas, prácticamente nada.
+- **Protector**: un metacrilato de 4 mm sobre el marco (13 mm sobre la pantalla) llega a tocarla con
   ~5 kg apoyados en el centro; el vidrio templado de 4 mm no la toca ni con un codo, pero pesa el doble.
 - **Temperatura**: con rejillas el aire interior se queda en ~39 °C con la habitación a 25 °C; con dos
   ventiladores USB, ~30 °C.
@@ -78,5 +84,6 @@ cuatro tacos encolados al marco. Quitando la base se llega a cables y tele sin t
 | `src/bom.js` / `src/decisions.js` | Lista de compra y comparativas |
 | `src/sim.js` / `src/fem.js` / `src/simui.js` | Cálculos analíticos, FEM de láminas y su interfaz |
 
-Las medidas marcadas «medir» (fondo del borde, joroba, posición VESA, receptor IR) son estimaciones:
+Las medidas marcadas «medir» (fondo del borde fino, tamaño y posición de la zona de fondo máximo de la
+trasera, posición VESA, receptor IR) son estimaciones:
 compruébalas con la tele delante antes de cortar (paso 1 de la guía).

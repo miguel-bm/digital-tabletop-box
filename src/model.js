@@ -6,6 +6,23 @@ import { PLY, PROTECTORS, COVERS } from './params.js';
 
 const r1 = v => Math.round(v * 10) / 10;
 
+// Trasera de la tele: un borde fino de fondo tvRimD y una «meseta» de fondo tvD (bumpW × bumpH,
+// desplazada bumpDz hacia el canto inferior) unidas por superficies curvas, como la carcasa
+// abombada de las Samsung de la serie M. Devuelve el fondo (mm) en cada punto (x, z).
+export function tvProfile(p, tv) {
+  const lip = 8, D = p.tvD, R = Math.min(p.tvRimD, p.tvD);
+  const cx = (tv.x0 + tv.x1) / 2, halfW = (tv.x1 - tv.x0) / 2;
+  const hx = Math.max(10, Math.min(p.bumpW / 2, halfW - lip - 20));
+  const pz0 = Math.max(tv.z0 + lip + 20, p.bumpDz - p.bumpH / 2), pz1 = Math.min(tv.z1 - lip - 20, Math.max(pz0 + 10, p.bumpDz + p.bumpH / 2));
+  const fall = (dd, ex) => (dd <= 0 ? 1 : dd >= ex ? 0 : 1 - (dd / ex) ** 2);
+  const depth = (x, z) => {
+    const fx = fall(Math.abs(x - cx) - hx, halfW - lip - hx);
+    const fz = z < pz0 ? fall(pz0 - z, pz0 - tv.z0 - lip) : fall(z - pz1, tv.z1 - lip - pz1);
+    return R + (D - R) * fx * fz;
+  };
+  return { depth, cx, hx, pz0, pz1, lip, D, R };
+}
+
 export function buildDesign(p) {
   const t = p.t;
   const prot = PROTECTORS[p.protector] || PROTECTORS.ninguno;
@@ -36,11 +53,12 @@ export function buildDesign(p) {
   const y0 = p.footH;
   const yBaseTop = y0 + t;
   const mountGap = p.gapBelow;
-  const yB = yBaseTop + mountGap;           // dorso de la joroba
+  const yB = yBaseTop + mountGap;           // dorso de la tele (punto más hondo)
   const yS = yB + p.tvD;                    // cara de la pantalla
   const yRim = yS - p.tvRimD;               // dorso del borde fino
   const twoLayer = p.frame === 'rebaje';
-  const protUnder = !twoLayer && pt > 0;
+  const protUnder = p.frame === 'pinzado' && pt > 0;
+  const protTop = p.frame !== 'rebaje' && p.frame !== 'pinzado' && pt > 0;   // marco simple: protector encima
   const yF = yS + (protUnder ? pt : 0) + p.gasket;   // cara inferior del marco
   const layers = twoLayer ? 2 : 1;
   const yTop = yF + layers * t;
@@ -54,6 +72,9 @@ export function buildDesign(p) {
     if (twoLayer) {
       protRect = [op1[0] - p.protOverlap, op1[1] - p.protOverlap, op1[2] + p.protOverlap, op1[3] + p.protOverlap];
       op2 = [protRect[0] - 1, protRect[1] - 1, protRect[2] + 1, protRect[3] + 1];
+    } else if (protTop) {
+      const ce = p.cover === 'ninguno' ? 0 : p.coverT;
+      protRect = [xo0 - ce, zo0 - ce, xo1 + ce, zo1 + ce];
     } else {
       protRect = [tv.x0 + 1, tv.z0 + 1, tv.x1 - 1, tv.z1 - 1];
     }
@@ -253,22 +274,56 @@ export function buildDesign(p) {
   const bc = 0.5;
   const baseRect = [xi0 + bc, zi0 + bc, xi1 - bc, zi1 - bc];
   const baseHoles = [];
+  const vx = tv.cx + p.vesaDx, vz = tv.cz + p.vesaDz;
+  const ribZ = [vz - p.vesa / 2, vz + p.vesa / 2];
   if (p.baseVents) {
     const nx = 9, nz = 3, bw = p.bumpW * 0.8, cxv = tv.cx, z0v = tv.z1 - 70;
     for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
       const x = cxv - bw / 2 + (bw * (i + 0.5)) / nx;
+      const zv = z0v - j * 22;
       if (p.mount === 'vesa' && Math.abs(x - (tv.cx + p.vesaDx)) - p.vesa / 2 < p.railW / 2 + 8 && Math.abs(Math.abs(x - (tv.cx + p.vesaDx)) - p.vesa / 2) < p.railW / 2 + 8) continue;
-      baseHoles.push({ circle: [x, z0v - j * 22, 6], tag: 'Ventilación Ø12' });
+      if (p.mount === 'base' && ribZ.some(z => Math.abs(zv - z) < p.railW / 2 + 9)) continue;
+      baseHoles.push({ circle: [x, zv, 6], tag: 'Ventilación Ø12' });
     }
   }
 
   // ── travesaños VESA y tacos colgadores ──
-  const vx = tv.cx + p.vesaDx, vz = tv.cz + p.vesaDz;
+  const prof = tvProfile(p, tv);
   const railX = [vx - p.vesa / 2, vx + p.vesa / 2];
   const hangerW = Math.min(p.hangerW, g - 1);
   const railGaps = [];
   const railOverlapsBatten = p.mount === 'vesa' && (mountGap - p.railH) < p.battenH;
-  if (p.mount === 'vesa') {
+  let ribs = [], boltL = 0;
+  if (p.mount === 'base') {
+    // dos costillas de punta a punta encoladas a la base; la tele se atornilla a ellas por sus 4 roscas
+    const bw0 = p.battenW, w = p.railW;
+    const sgn = portRight ? 1 : -1;
+    const room = p.source === 'minipc' ? 150 : 0;
+    let rx0 = xi0 + bw0 + 2, rx1 = xi1 - bw0 - 2;
+    if (room) { if (sgn > 0) rx1 -= room; else rx0 += room; }
+    ribZ.forEach((z, i) => {
+      // la costilla no puede tocar la trasera en ningún punto de su huella
+      let dv = 0;
+      for (let k = 0; k <= 40; k++) for (const dz of [-w / 2, 0, w / 2]) dv = Math.max(dv, prof.depth(rx0 + (rx1 - rx0) * k / 40, z + dz));
+      const dHole = Math.min(prof.depth(vx - p.vesa / 2, z), prof.depth(vx + p.vesa / 2, z));
+      const yTopR = yS - dv, hR = yTopR - yBaseTop;
+      ribs.push({ z, x0: rx0, x1: rx1, w, h: hR, shim: dv - dHole });
+      add({ id: 'R' + (i + 1), key: 'rib' + i, name: 'Costilla VESA ' + (i ? 'frontal' : 'del fondo'), role: 'costilla', mat: 'batten', step: 'costillas',
+        solids: [{ plane: 'XZ', rect: [rx0, z - w / 2, rx1, z + w / 2], t: [yBaseTop, yTopR], holes: [-1, 1].map(s2 => ({ circle: [vx + s2 * p.vesa / 2, z, 5], tag: 'Taladro Ø10 VESA M8' })) }],
+        cut: { L: r1(rx1 - rx0), W: w, T: r1(hR), stock: 'taco', notes: `2 taladros Ø10 a ${p.vesa} mm (VESA) · encolada y atornillada a la base desde abajo` },
+        follow: 'B1', explode: [0, -200, 0] });
+    });
+    const hR = Math.min(...ribs.map(r => r.h));
+    boltL = Math.ceil((t + hR + Math.max(0, ...ribs.map(r => r.shim)) + 8) / 5) * 5;
+    const engage = boltL - t - hR - Math.max(0, ...ribs.map(r => r.shim));
+    if (hR < 8) warn('error', `Las costillas VESA quedan de ${r1(hR)} mm: sube el hueco bajo la tele.`);
+    if (ribs.some(r => r.shim > 1)) warn('warn', `Alguna rosca VESA cae en la parte curva de la trasera: queda ${r1(Math.max(...ribs.map(r => r.shim)))} mm por encima de su costilla. Calza con arandelas o un taco en ese punto.`);
+    if (ribs.some(r => Math.abs(r.h - hR) > 0.5)) warn('info', `Las roscas VESA no caen todas a la misma altura de la trasera: costillas de ${ribs.map(r => r1(r.h)).join(' y ')} mm.`);
+    if (prof.depth(vx, vz) < p.tvD - 0.5) warn('warn', 'El centro VESA cae en la parte curva de la trasera: comprueba las medidas de la zona de fondo máximo.');
+    hw.push({ g: 'TV', name: `Tornillo M8 × ${boltL} avellanado DIN 7991 (VESA, desde debajo de la base)`, qty: 4, unit: 0.45, note: `entran ${r1(engage)} mm en la tele` });
+    hw.push({ g: 'TV', name: 'Varilla roscada M8 × 80 (2 guías para bajar la base, se reutilizan)', qty: 2, unit: 0.6 });
+    hw.push({ g: 'TV', name: 'Arandelas M8 (calzos si la pantalla no asienta en el burlete)', qty: 8, unit: 0.05 });
+  } else if (p.mount === 'vesa') {
     if (mountGap < p.railH + 1) warn('error', `El travesaño VESA (${p.railH} mm) no cabe bajo la tele: el hueco es de ${mountGap} mm. Súbelo a ${p.railH + 2} mm.`);
     if (g - 1 < p.hangerW) warn('warn', `Los tacos colgadores se recortan a ${r1(hangerW)} mm de fondo porque el margen interior es de ${r1(g)} mm.`);
     if (hangerW < 10) warn('error', 'No hay sitio para los tacos colgadores de los travesaños: aumenta el margen interior (≥ 12 mm).');
@@ -330,14 +385,14 @@ export function buildDesign(p) {
   });
 
   // tacos verticales de esquina
+  const cb = Math.max(14, Math.min(30, Math.min(gL, gR, g) - 1));
   if (p.cornerBlocks) {
-    const cb = Math.min(bw, 30);
     [[xi0, zi0], [xi1 - cb, zi0], [xi0, zi1 - cb], [xi1 - cb, zi1 - cb]].forEach(([x, z], i) => add({
-      id: 'C' + (i + 1), key: 'corner' + i, name: 'Taco de esquina', role: 'taco', mat: 'batten', step: 'caja',
+      id: 'C' + (i + 1), key: 'corner' + i, name: 'Poste de esquina', role: 'taco', mat: 'batten', step: 'caja',
       solids: [{ plane: 'XY', rect: [x, yBaseTop + bh, x + cb, yF], t: [z, z + cb] }],
-      cut: { L: r1(yF - yBaseTop - bh), W: cb, T: cb, stock: 'taco', notes: 'Encolar a las dos paredes y al marco' },
+      cut: { L: r1(yF - yBaseTop - bh), W: r1(cb), T: r1(cb), stock: 'taco', notes: 'Encolar a las dos paredes y al marco; apoya en el cruce de los listones' + (protTop ? ' · recibe el tornillo del protector' : '') },
       explode: [(x < 0 ? -1 : 1) * 150, 20, (z < 0 ? -1 : 1) * 150] }));
-    if (Math.min(gL, gR, g) < cb && yRim < yF) warn('warn', `Los tacos de esquina (${cb} mm) invaden las esquinas de la tele: el margen es de ${r1(Math.min(gL, gR, g))} mm. Achaflánalos o súbelos de margen.`);
+    if (Math.min(gL, gR, g) < cb) warn('warn', `Los postes de esquina (${r1(cb)} mm) invaden las esquinas de la tele: el margen es de ${r1(Math.min(gL, gR, g))} mm. Achaflánalos o sube el margen.`);
   }
 
   // refuerzo interior del asa
@@ -374,21 +429,29 @@ export function buildDesign(p) {
       }
     }
     screwPts.forEach(([x, z]) => baseHoles.push({ circle: [x, z, 2.75], tag: 'Taladro Ø5,5 avellanado' }));
+    if (p.mount === 'base') ribZ.forEach(z => [-1, 1].forEach(sx => baseHoles.push({ circle: [vx + sx * p.vesa / 2, z, 5], tag: 'Taladro Ø10 VESA, avellanado por debajo' })));
   }
   add({ id: 'B1', key: 'base', name: 'Base extraíble (trasera de la tele)', role: 'base', mat: 'ply', step: 'base',
     solids: [{ plane: 'XZ', rect: baseRect, t: [y0, y0 + t], holes: baseHoles }], explode: [0, -200, 0] });
 
   // ── protector ──
+  const ctTop = p.cover !== 'ninguno' && p.frameFinish === 'mismo' ? p.coverT : 0;
+  const protY = twoLayer ? yF + t : protTop ? yTop + ctTop : yS;
+  const protHoles = protTop ? [[xi0 + cb / 2, zi0 + cb / 2], [xi1 - cb / 2, zi0 + cb / 2], [xi0 + cb / 2, zi1 - cb / 2], [xi1 - cb / 2, zi1 - cb / 2]].map(([x, z]) => ({ circle: [x, z, 2.5], tag: 'Taladro Ø5 (tornillo con arandela de copa)' })) : [];
   if (protRect) {
-    const y = twoLayer ? yF + t : yS;
-    add({ id: 'P1', key: 'protector', name: prot.label, role: 'protector', mat: prot.mat, step: twoLayer ? 'protector' : 'tv',
-      solids: [{ plane: 'XZ', rect: protRect, t: [y, y + pt] }],
-      cut: { L: r1(protRect[2] - protRect[0]), W: r1(protRect[3] - protRect[1]), T: pt, stock: 'protector', notes: 'Cantos pulidos, esquinas R3' }, explode: [0, twoLayer ? 340 : 120, 0] });
+    add({ id: 'P1', key: 'protector', name: prot.label, role: 'protector', mat: prot.mat, step: protUnder ? 'tv' : 'protector',
+      solids: [{ plane: 'XZ', rect: protRect, t: [protY, protY + pt], holes: protHoles }],
+      cut: { L: r1(protRect[2] - protRect[0]), W: r1(protRect[3] - protRect[1]), T: pt, stock: 'protector', notes: protTop ? 'Del tamaño exterior de la caja · cantos pulidos · 4 taladros Ø5 en las esquinas' : 'Cantos pulidos, esquinas R3' }, explode: [0, protUnder ? 120 : 340, 0] });
+    if (protTop) {
+      hw.push({ g: 'TV', name: 'Tornillo 3,5 × 30 + arandela de copa (protector → postes de esquina)', qty: 4, unit: 0.15 });
+      if (prot.mat === 'glass') warn('warn', 'Un vidrio templado no se taladra después de templar: pide los 4 taladros de las esquinas al cortarlo, o usa el marco doble con pozo.');
+      if (!p.cornerBlocks) warn('info', 'Sin postes de esquina, los tornillos del protector solo muerden los 10 mm del marco.');
+    }
   }
 
   // ── televisor ──
   add({ id: 'TV', key: 'tv', name: 'Samsung UE43M5575AU', role: 'tv', mat: 'tv', step: 'tv', tv: {
-    x0: tv.x0, x1: tv.x1, z0: tv.z0, z1: tv.z1, yB, yS, yRim, scr, bump: { w: p.bumpW, h: p.bumpH, cx: tv.cx, cz: p.bumpDz }, vesa: { x: vx, z: vz, s: p.vesa },
+    x0: tv.x0, x1: tv.x1, z0: tv.z0, z1: tv.z1, yB, yS, yRim, scr, vesa: { x: vx, z: vz, s: p.vesa },
   }, explode: [0, 110, 0] });
 
   // burlete
@@ -418,7 +481,7 @@ export function buildDesign(p) {
         solids: [{ plane: 'XZ', rect: [xo0 - ct, zo0 - ct, xo1 + ct, zo1 + ct], t: [yTop, yTop + ct], notches: [twoLayer ? op2 : op1, ...(twoLayer && irNotch ? [irNotch] : [])], holes: twoLayer ? [...irF2, ...pocketHoles, ...cardHoles] : irF1 }], explode: [0, 360, 0] });
     }
   }
-  const outer = { X: X + 2 * ct, Z: Z + 2 * ct, H: H + (p.frameFinish === 'mismo' ? ct : 0) };
+  const outer = { X: X + 2 * ct, Z: Z + 2 * ct, H: H + (p.frameFinish === 'mismo' ? ct : 0) + (protTop ? pt : 0) };
 
   // ── herrajes visibles ──
   if (p.footH > 0) {
@@ -427,7 +490,10 @@ export function buildDesign(p) {
       const x = xi0 + 45 + (innerX - 90) * (cols === 1 ? 0.5 : i / (cols - 1));
       fixtures.push({ kind: 'foot', pos: [x, 0, z], h: p.footH, r: 11, step: 'base' });
     }
-    hw.push({ g: 'Base', name: `Pata de goma Ø22 × ${p.footH} con tornillo`, qty: nf, unit: 0.5 });
+    let nc = 0;
+    if (p.mount === 'base' && p.centerFeet) ribZ.forEach(z => [-1, 1].forEach(sx => { nc++; fixtures.push({ kind: 'foot', pos: [vx + sx * (p.vesa / 2 + 45), 0, z], h: p.footH, r: 11, step: 'base', center: true }); }));
+    hw.push({ g: 'Base', name: `Pata de goma Ø22 × ${p.footH} con tornillo`, qty: nf + nc, unit: 0.5 });
+    if (p.mount === 'base' && p.footH < 7) warn('warn', `Las cabezas de los M8 avellanados quedan enrasadas, pero con patas de ${p.footH} mm la base casi toca la mesa.`);
   }
   if (p.handle === 'maleta') {
     fixtures.push({ kind: 'handle', pos: [0, midY(battenTop, yF), zo0 - ct], span: 2 * boltX, step: 'remate', follow: 'W1' });
@@ -469,9 +535,9 @@ export function buildDesign(p) {
   // puertos de la tele y cables hasta la pared de conexiones
   {
     const sgn = portRight ? 1 : -1;
-    const bx = p.bumpW / 2 * sgn + tv.cx;
-    const yc = (yB + yRim) / 2;
-    const ports = [[bx, yc, p.bumpDz + p.bumpH / 2 - 50, 'power'], [bx, yc, p.bumpDz - 40, 'hdmi']];
+    const bx = prof.cx + sgn * (prof.hx + 25);
+    const zp = [prof.pz1 - 40, (prof.pz0 + prof.pz1) / 2 - 30];
+    const ports = [[bx, yS - prof.depth(bx, zp[0]) + 9, zp[0], 'power'], [bx, yS - prof.depth(bx, zp[1]) + 9, zp[1], 'hdmi']];
     const wallX = portRight ? xo1 + ct : xo0 - ct, wallIn = portRight ? xi1 : xi0;
     const cyIn = Math.min(cy, yRim - 8);
     ports.forEach(([x, y, z, k], i) => {
@@ -538,6 +604,7 @@ export function buildDesign(p) {
   hw.unshift(
     { g: 'Caja', name: 'Cola blanca D3 (o poliuretano)', qty: 1, unit: 6 },
     { g: 'Caja', name: 'Tornillo madera 3,5 × 25 avellanado (listones y tacos, desde fuera)', qty: Math.ceil(battenLen / 120) + (p.cornerBlocks ? 16 : 0) + (p.mount === 'vesa' ? 8 : 0), unit: 0.04 },
+    ...(p.mount === 'base' ? [{ g: 'Caja', name: 'Tornillo madera 3,5 × 30 avellanado (base → costillas, desde abajo)', qty: 8, unit: 0.05 }] : []),
     { g: 'Caja', name: 'Puntas / clavos sin cabeza 1,2 × 25 (marco sobre paredes)', qty: Math.ceil((2 * (X + Z)) / 80) * layers, unit: 0.02 },
   );
   if (p.baseFix === 'insertos') {
@@ -587,7 +654,7 @@ export function buildDesign(p) {
     X, Z, H, outer, innerX, innerZ, wallH, g, gL, gR, ring1, ring2, y0, yBaseTop, yB, yS, yF, yTop, yRim,
     mass, coverArea: coverAreaReal, op1, op2, protRect, tv, scr, bezelTop, bezelSide, vol,
     pxPerMm: px, inchPx: 25.4 * px, gridCells: [Math.floor(p.screenW / 25.4), Math.floor(p.screenH / 25.4)],
-    railX, vz, screwPts, twoLayer, pt, ct, cy, cz, portWall, pockets: pocketHoles.map(h => h.rect), cardSlots: cardHoles.map(h => h.rect),
+    railX, vz, ribs, boltL, prof: { hx: prof.hx, pz0: prof.pz0, pz1: prof.pz1, lip: prof.lip }, protY, protTop, protAbove: twoLayer || protTop, screwPts, twoLayer, pt, ct, cy, cz, portWall, pockets: pocketHoles.map(h => h.rect), cardSlots: cardHoles.map(h => h.rect),
   };
 
   // cotas para la escena y los planos

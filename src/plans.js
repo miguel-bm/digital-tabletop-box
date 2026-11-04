@@ -1,4 +1,4 @@
-import { pieceCut } from './model.js';
+import { pieceCut, tvProfile } from './model.js';
 import { cutRows, packBoards, BOARD } from './cutlist.js';
 import { rectMinusRects, regionCells } from './geometry.js';
 import { planAssembly } from './assembly.js';
@@ -111,12 +111,12 @@ function drawSection(d, axis, c, X, Y, opts = {}) {
   if (tvp) {
     const t = tvp.tv;
     const a0 = axis === 'x' ? t.z0 : t.x0, a1 = axis === 'x' ? t.z1 : t.x1;
-    const b = t.bump, bc = axis === 'x' ? b.cz : b.cx, bh = axis === 'x' ? b.h : b.w;
     const inTV = axis === 'x' ? c > t.x0 && c < t.x1 : c > t.z0 && c < t.z1;
     if (inTV) {
-      out += rect(X(a0), Y(t.yRim), X(a1), Y(t.yS), `fill="#d9dbde" stroke="${INK}" stroke-width=".35"`);
-      const inBump = axis === 'x' ? Math.abs(c - b.cx) < b.w / 2 : Math.abs(c - b.cz) < b.h / 2;
-      if (inBump) out += rect(X(bc - bh / 2), Y(t.yB), X(bc + bh / 2), Y(t.yRim), `fill="#e8e9eb" stroke="${INK}" stroke-width=".3"`);
+      const prof = tvProfile(d.params, t), n = 80, pts = [];
+      for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; pts.push([a, t.yS - (axis === 'x' ? prof.depth(c, a) : prof.depth(a, c))]); }
+      const poly = [[a0, t.yS], ...pts, [a1, t.yS]].map(([u, v]) => `${X(u).toFixed(2)},${Y(v).toFixed(2)}`).join(' ');
+      out += `<polygon points="${poly}" fill="#dfe1e4" stroke="${INK}" stroke-width=".35"/>`;
       const s0 = axis === 'x' ? t.scr.z0 : t.scr.x0, s1 = axis === 'x' ? t.scr.z1 : t.scr.x1;
       out += `<line x1="${X(s0)}" y1="${Y(t.yS)}" x2="${X(s1)}" y2="${Y(t.yS)}" stroke="#2a7ab8" stroke-width=".8"/>`;
     }
@@ -140,6 +140,7 @@ function sheetConjunto(d, n, total) {
   b += rect(X(m.op1[0]), Y(m.op1[1]), X(m.op1[2]), Y(m.op1[3]), `stroke="${INK}" stroke-width=".25" fill="#eef4f8"`);
   b += rect(X(-m.innerX / 2), Y(-m.innerZ / 2), X(m.innerX / 2), Y(m.innerZ / 2), `stroke="${MUTED}" stroke-width=".2" stroke-dasharray="1.5 1"`);
   b += rect(X(m.tv.x0), Y(m.tv.z0), X(m.tv.x1), Y(m.tv.z1), `stroke="#2a7ab8" stroke-width=".25" stroke-dasharray="2 1"`);
+  d.pieces.filter(pc => pc.role === 'costilla').forEach(pc => { const r = pc.solids[0].rect; b += rect(X(r[0]), Y(r[1]), X(r[2]), Y(r[3]), `stroke="${MUTED}" stroke-width=".2" stroke-dasharray="1.5 1"`); });
   d.pieces.filter(pc => pc.role === 'travesano').forEach(pc => { const so = pc.solids[0]; b += rect(X(so.t[0]), Y(so.rect[0]), X(so.t[1]), Y(so.rect[2]), `stroke="${MUTED}" stroke-width=".2" stroke-dasharray="1.5 1"`); });
   // VESA
   [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, c]) => (b += `<circle cx="${X(m.railX[a < 0 ? 0 : 1])}" cy="${Y(m.vz + c * p.vesa / 2)}" r=".9" stroke="#2a7ab8" stroke-width=".25"/>`));
@@ -184,13 +185,13 @@ function sheetConjunto(d, n, total) {
   const dx0 = 258, dy0 = 32;
   const SX = z => dx0 + (z - zA) * sc, SY = y => dy0 + (m.outer.H + m.y0 + 6 - y) * sc;
   b += text(250, 22, 'SECCIÓN A-A · DETALLE 1:1', 4.2, 'font-weight="700"');
-  b += text(250, 26.5, `por x = ${f1(xc)} (travesaño VESA), lado del asa`, 2.6, `fill="${MUTED}"`);
+  b += text(250, 26.5, `por x = ${f1(xc)}${p.mount === 'vesa' ? ' (travesaño VESA)' : ''}, lado del asa`, 2.6, `fill="${MUTED}"`);
   b += `<clipPath id="clipA"><rect x="${dx0}" y="${dy0}" width="${130 * sc}" height="${(m.outer.H + m.y0 + 12) * sc}"/></clipPath>`;
   b += `<g clip-path="url(#clipA)">${drawSection(d, 'x', xc, SX, SY)}</g>`;
   b += `<line x1="${dx0}" y1="${SY(0)}" x2="${dx0 + 130 * sc}" y2="${SY(0)}" stroke="${INK}" stroke-width=".4"/>`;
   b += `<path d="M${dx0 + 130 * sc} ${dy0} l-2 4 l4 4 l-2 4" stroke="${MUTED}" stroke-width=".3"/>`;
   // cotas de la pila
-  const levels = [[0, m.y0, 'patas'], [m.y0, m.yBaseTop, 'base'], [m.yBaseTop, m.yB, p.mount === 'vesa' ? 'travesaño' : 'espuma'], [m.yB, m.yS, 'tele'], [m.yS, m.yF, m.twoLayer || !m.pt ? 'burlete' : 'prot.+burlete'], [m.yF, m.yTop, 'marco']].filter(([a, c]) => c - a > 0.4);
+  const levels = [[0, m.y0, 'patas'], [m.y0, m.yBaseTop, 'base'], [m.yBaseTop, m.yB, p.mount === 'vesa' ? 'travesaño' : p.mount === 'base' ? 'costilla' : 'espuma'], [m.yB, m.yS, 'tele'], [m.yS, m.yF, m.protAbove || !m.pt ? 'burlete' : 'prot.+burlete'], [m.yF, m.yTop, 'marco'], ...(m.protTop ? [[m.protY, m.protY + m.pt, 'prot.']] : [])].filter(([a, c]) => c - a > 0.4);
   levels.forEach(([a, c, l], i) => { b += dim(SX(zB), SY(a), SX(zB), SY(c), -4 - (i % 2) * 9, f1(c - a), { size: 2.2 }); });
   b += dim(SX(zB) + 26, SY(0), SX(zB) + 26, SY(m.yTop), 0, f1(m.yTop), { size: 2.4 });
   b += dim(SX(-m.Z / 2), SY(m.yTop) - 4, SX(m.op1[1]), SY(m.yTop) - 4, 0, f1(m.op1[1] + m.Z / 2), { size: 2.2 });

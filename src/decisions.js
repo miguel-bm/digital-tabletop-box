@@ -25,7 +25,7 @@ export function renderDecisions(host, params, apply) {
 
   // marco
   h += `<div class="h-sub">Marco</div><table class="cut cmpt"><thead><tr><th>Opción</th><th class="n">Alto</th><th class="n">kg caja</th><th>Para</th></tr></thead><tbody>`;
-  [['rebaje', 'Doble con pozo', 'Protector suelto y recambiable, dados que no se escapan'], ['simple', 'Simple', 'Lo más fino; protector pinzado sobre la pantalla']].forEach(([k, l, why]) => {
+  [['simple', 'Simple, protector encima', 'Una sola capa; el protector cubre toda la caja y se atornilla a los postes de esquina'], ['rebaje', 'Doble con pozo', 'Protector suelto y recambiable, dados que no se escapan; una capa más'], ['pinzado', 'Simple, protector debajo', 'Lo más fino; el protector descansa casi sobre la pantalla']].forEach(([k, l, why]) => {
     const d = buildDesign({ ...params, frame: k });
     h += `<tr class="${params.frame === k ? 'cur' : ''}" data-apply='${JSON.stringify({ frame: k })}'><td>${l}</td><td class="n">${f(d.metrics.outer.H + d.metrics.y0)}</td><td class="n">${f(d.metrics.mass.total - d.metrics.mass.tv)}</td><td>${why}</td></tr>`;
   });
@@ -43,7 +43,8 @@ export function renderDecisions(host, params, apply) {
   // cualitativas
   const qual = [
     ['Sujeción de la tele', [
-      ['vesa', 'Travesaños VESA colgados', 'La tele cuelga del marco por sus 4 roscas: quitas la base y todo sigue en su sitio. Es lo más seguro para llevarla de pie.', { mount: 'vesa' }],
+      ['base', 'Atornillada a la base (VESA)', 'Las 4 roscas VESA van a dos costillas de punta a punta encoladas a la base: el peso baja directo a la mesa por las patas centrales, los listones no se cortan y el marco solo lleva el protector. Al abrir quitas 4 M8 más.', { mount: 'base' }],
+      ['vesa', 'Travesaños VESA colgados', 'La tele cuelga del marco por sus 4 roscas: quitas la base y todo sigue en su sitio. Pide tacos colgadores y partir los listones largos.', { mount: 'vesa' }],
       ['espuma', 'Tacos de espuma', 'Más simple: la base la aprieta contra el marco. Pero al quitar la base la tele queda suelta: solo se abre boca abajo.', { mount: 'espuma' }],
     ], 'mount'],
     ['Fijación de la base', [
@@ -81,9 +82,11 @@ export function renderDecisions(host, params, apply) {
   const m = base.metrics;
   h += `<div class="h-sub">Por qué está diseñada así</div><ul class="why">
     <li><b>La base es la trasera de la tele</b> y la única tapa que se quita: así se monta todo boca abajo (la tele entra por detrás y apoya la pantalla sobre el burlete del marco) y luego se accede a cables sin tocar el marco ni las paredes, que van encolados.</li>
-    <li><b>El asa va en el canto superior de la tele</b>: llevándola de pie, la tele viaja en su posición natural y su peso cuelga de los travesaños hacia los tacos del frente, no del panel.</li>
+    <li><b>El asa va en el canto superior de la tele</b>: llevándola de pie, la tele viaja en su posición natural y su peso ${params.mount === 'base' ? 'pasa por los 4 tornillos VESA a las costillas de la base, que está atornillada a todo el perímetro' : 'cuelga de los travesaños hacia los tacos del frente, no del panel'}.</li>
+    ${params.mount === 'base' ? `<li><b>La tele atornillada a la base por el VESA</b>: dos costillas de ${params.railW} mm de punta a punta reparten las 4 roscas y rigidizan la base; con las patas centrales el peso de la tele (y de quien se apoye) va directo a la mesa. Los listones del perímetro quedan enteros.</li>` : ''}
+    ${params.frame === 'simple' ? `<li><b>Una sola capa de marco y postes en las esquinas</b>: el marco cierra la caja por arriba (sin él la torsión se dispara, ver Cálculos) pero basta una capa; el protector va encima, a ${(m.protY - m.yS).toFixed(0)} mm de la pantalla, atornillado a los cuatro postes.</li>` : ''}
     <li><b>Paredes de ${m.wallH.toFixed(0)} mm con listones</b>: un canto de ${params.t} mm no agarra tornillos; los listones de ${params.battenW}×${params.battenH} dan rosca a la base y superficie de cola.</li>
-    <li><b>Cámara perimetral de ${params.margin} mm</b>: espacio para los tacos colgadores, los cables y el aire, y un marco visible de ~${(m.op1[0] + m.X / 2).toFixed(0)} mm donde apoyar las manos.</li>
+    <li><b>Cámara perimetral de ${params.margin} mm</b>: espacio para ${params.mount === 'vesa' ? 'los tacos colgadores, ' : 'los postes de esquina, '}los cables y el aire, y un marco visible de ~${(m.op1[0] + m.X / 2).toFixed(0)} mm donde apoyar las manos.</li>
     <li><b>Marco negro mate</b>: cualquier borde claro alrededor de una pantalla luminosa se refleja y cansa la vista; el labio interior va siempre pintado.</li>
     <li><b>Torsión</b>: una caja con una ventana enorme arriba es blanda al alabeo; la base, atornillada cada ~${(2 * (m.innerX + m.innerZ) / params.baseScrews).toFixed(0)} mm, cierra la caja y la rigidiza (ver Cálculos).</li>
     <li><b>Rejilla de 1"</b>: a ${m.inchPx.toFixed(1)} px por pulgada caben ${m.gridCells[0]} × ${m.gridCells[1]} casillas, un mapa de mazmorra de buen tamaño a escala de miniatura.</li>

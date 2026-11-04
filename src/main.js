@@ -8,7 +8,7 @@ import { icon, decorate, setupTips } from './icons.js';
 import { renderDecisions } from './decisions.js';
 import { buildBOM } from './bom.js';
 
-const STORE_KEY = 'tabletop.v1';
+const STORE_KEY = 'tabletop.v2';   // v2: trasera curva, tele atornillada a la base, marco simple
 // Limpia parámetros que vienen de fuera (almacenamiento, enlace, archivo): solo claves conocidas,
 // opciones válidas y números dentro de rango.
 function sanitize(src) {
@@ -404,7 +404,7 @@ function renderData() {
     <div class="h-sub">Peso · ${f1(M.total)} kg</div>
     ${bar([{ l: 'Tele', v: M.tv, c: '#5ad1e6' }, { l: 'Tablero', v: M.ply, c: '#e7d3b4' }, { l: 'Listón', v: M.batten, c: '#c99b62' }, { l: 'Protector', v: M.protector, c: '#a9c7e0' }, { l: 'Forro', v: M.cover, c: '#8a919b' }, { l: 'Herrajes', v: M.hw, c: '#ffb020' }].filter(x => x.v > 0.01))}
     <div class="h-sub">Ficha de la tele</div>
-    <p class="note">Samsung UE43M5575AU (serie M5500, 2017): 972,9 × 570 × 55,1 mm sin peana, 9,5 kg, VESA 200 × 200 (M8), Full HD 1920 × 1080, 54 W típicos, 3 HDMI, 2 USB, altavoces 2 × 10 W hacia abajo. Fuente: <a href="https://tvsfaq.com/en/specifications/samsung-ue43m5575au" target="_blank" rel="noopener">tvsfaq.com</a>. El fondo del borde, la joroba trasera, la posición VESA y la del receptor IR son estimaciones: mídelas (paso 1 del montaje).</p>
+    <p class="note">Samsung UE43M5575AU (serie M5500, 2017): 972,9 × 570 × 55,1 mm sin peana, 9,5 kg, VESA 200 × 200 (M8), Full HD 1920 × 1080, 54 W típicos, 3 HDMI, 2 USB, altavoces 2 × 10 W hacia abajo. Fuente: <a href="https://tvsfaq.com/en/specifications/samsung-ue43m5575au" target="_blank" rel="noopener">tvsfaq.com</a>. El fondo del borde, la forma de la trasera curva (dónde alcanza el fondo máximo), la posición VESA y la del receptor IR son estimaciones: mídelas (paso 1 del montaje).</p>
     <div class="h-sub">Pantalla para jugar</div>
     <dl class="facts">
       <dt>Área visible</dt><dd>${f1(p.screenW)} × ${f1(p.screenH)} mm</dd>
@@ -419,12 +419,12 @@ function renderData() {
     <table class="cut stack"><tbody>
       ${m.y0 ? `<tr><td>Patas</td><td class="n">0 → ${f1(m.y0)}</td></tr>` : ''}
       <tr><td>Base</td><td class="n">${f1(m.y0)} → ${f1(m.yBaseTop)}</td></tr>
-      <tr><td>${p.mount === 'vesa' ? 'Travesaño VESA / aire' : 'Espuma'}</td><td class="n">${f1(m.yBaseTop)} → ${f1(m.yB)}</td></tr>
-      <tr><td>Tele (joroba → pantalla)</td><td class="n">${f1(m.yB)} → ${f1(m.yS)}</td></tr>
-      ${!m.twoLayer && m.pt ? `<tr><td>Protector</td><td class="n">${f1(m.yS)} → ${f1(m.yS + m.pt)}</td></tr>` : ''}
+      <tr><td>${p.mount === 'base' ? 'Costillas VESA / aire' : p.mount === 'vesa' ? 'Travesaño VESA / aire' : 'Espuma'}</td><td class="n">${f1(m.yBaseTop)} → ${f1(m.yB)}</td></tr>
+      <tr><td>Tele (dorso → pantalla)</td><td class="n">${f1(m.yB)} → ${f1(m.yS)}</td></tr>
+      ${!m.protAbove && m.pt ? `<tr><td>Protector</td><td class="n">${f1(m.yS)} → ${f1(m.yS + m.pt)}</td></tr>` : ''}
       <tr><td>Burlete</td><td class="n">→ ${f1(m.yF)}</td></tr>
       <tr><td>Marco${m.twoLayer ? ' (2 capas)' : ''}</td><td class="n">${f1(m.yF)} → ${f1(m.yTop)}</td></tr>
-      ${m.twoLayer && m.pt ? `<tr><td>Protector (en el pozo)</td><td class="n">${f1(m.yF + p.t)} → ${f1(m.yF + p.t + m.pt)}</td></tr>` : ''}
+      ${m.protAbove && m.pt ? `<tr><td>Protector (${m.twoLayer ? 'en el pozo' : 'encima del marco'})</td><td class="n">${f1(m.protY)} → ${f1(m.protY + m.pt)}</td></tr>` : ''}
     </tbody></table>`;
 }
 

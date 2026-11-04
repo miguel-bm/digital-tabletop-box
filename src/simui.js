@@ -171,7 +171,7 @@ function show3D(d, viewer, cases) {
     const c = cases.find(x => x.id === st.card);
     if (c && c.field && c.id === 'protector') {
       const m = d.metrics;
-      const y = m.twoLayer ? m.yF + d.params.t + m.pt : m.yS + m.pt;
+      const y = m.protAbove ? m.protY + m.pt : m.yS + m.pt;
       const a = c.field.a, b = c.field.b, cx = (m.op1[0] + m.op1[2]) / 2, cz = (m.op1[1] + m.op1[3]) / 2;
       viewer.setOverlay(plateOverlay(c.field, [cx - a / 2, cz - b / 2, cx + a / 2, cz + b / 2], y, Math.min(1, st.scale / 20)), { hideModel: false });
       return;
@@ -263,7 +263,7 @@ const STUDIES = {
   tornillos: { label: 'Tornillos de la base', line: true, vars: [4, 6, 8, 10, 14, 20, 30].map(n => ({ x: n, label: String(n), over: { baseScrews: n } })) },
   grosor: { label: 'Grosor del tablero', vars: [8, 10, 12, 15, 18].map(t => ({ x: t, label: t + ' mm', over: { t } })) },
   tablero: { label: 'Tipo de contrachapado', vars: [['chopo', 'Chopo'], ['pino', 'Pino / okumen'], ['abedul', 'Abedul']].map(([k, l]) => ({ x: k, label: l, over: { plyType: k } })) },
-  marco: { label: 'Marco y margen', vars: [['simple', 8, 'Simple · margen 8'], ['simple', 20, 'Simple · margen 20'], ['rebaje', 20, 'Doble · margen 20'], ['rebaje', 40, 'Doble · margen 40'], ['rebaje', 60, 'Doble · margen 60']].map(([fr, mg, l]) => ({ x: l, label: l, over: { frame: fr, margin: mg } })) },
+  marco: { label: 'Marco y margen', vars: [['simple', 8, 'Simple · margen 8'], ['simple', 20, 'Simple · margen 20'], ['simple', 40, 'Simple · margen 40'], ['rebaje', 20, 'Doble · margen 20'], ['rebaje', 40, 'Doble · margen 40']].map(([fr, mg, l]) => ({ x: l, label: l, over: { frame: fr, margin: mg } })) },
   base: { label: 'Fijación de la base', vars: [['insertos', 'Tornillos M5'], ['magnetos', 'Imanes + 4 M5']].map(([k, l]) => ({ x: k, label: l, over: { baseFix: k } })) },
 };
 st.sensKind = 'tornillos';

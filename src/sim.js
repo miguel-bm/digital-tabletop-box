@@ -65,8 +65,8 @@ export function thermal(d, { fans = d.params.fans, vents = d.params.vents, baseV
   // frente: pantalla → (cámara de aire + protector) → habitación
   const hOut = 9;   // convección natural (placa horizontal hacia arriba) + radiación
   let Ufront = hOut;
-  if (m.twoLayer && m.pt) {
-    const gap = (m.yF + p.t - m.yS) / 1000;          // m
+  if (m.protAbove && m.pt) {
+    const gap = (m.protY - m.yS) / 1000;          // m
     const hGap = Math.max(1, 0.026 / gap * 1.1) + 5;  // conducción/convección débil + radiación entre caras
     const Rprot = (m.pt / 1000) / 0.19;               // PMMA k≈0,19
     Ufront = 1 / (1 / hGap + Rprot + 1 / hOut);
@@ -125,12 +125,12 @@ export function runCases(d) {
   // 1 · protector: codo apoyado en el centro
   const prot = PROTECTORS[p.protector];
   if (m.protRect) {
-    const a = m.twoLayer ? (m.op1[2] - m.op1[0]) + p.protOverlap : p.screenW;
-    const b = m.twoLayer ? (m.op1[3] - m.op1[1]) + p.protOverlap : p.screenH;
+    const a = m.twoLayer ? (m.op1[2] - m.op1[0]) + p.protOverlap : m.protTop ? m.op1[2] - m.op1[0] : p.screenW;
+    const b = m.twoLayer ? (m.op1[3] - m.op1[1]) + p.protOverlap : m.protTop ? m.op1[3] - m.op1[1] : p.screenH;
     const elbow = navierPlate({ a, b, t: prot.t, E: prot.E, nu: prot.nu, loads: [{ P: 250, x: a / 2, y: b / 2, u: 50, v: 50 }] });
     const selfq = (prot.rho * G * prot.t * 1e-9);   // N/mm²
     const self = navierPlate({ a, b, t: prot.t, E: prot.E, nu: prot.nu, loads: [{ P: selfq * a * b, x: a / 2, y: b / 2, u: a, v: b }], terms: 15 });
-    const gap = m.twoLayer ? m.yF + p.t - m.yS : 0.3;
+    const gap = m.protAbove ? m.protY - m.yS : 0.3;
     const touches = elbow.wmax + self.wmax > gap;
     const Ptouch = Math.max(0, (gap - self.wmax) / elbow.wmax * 250);
     cases.push({
@@ -140,15 +140,35 @@ export function runCases(d) {
       Ptouch,
       status: verdict(!touches && sf(elbow.smax, prot.MOR) > 3, sf(elbow.smax, prot.MOR) > 2),
       text: touches
-        ? (m.twoLayer ? `Con ${prot.t} mm el protector toca la pantalla en cuanto se apoyan ${f(Ptouch / 9.81)} kg en el centro (hay ${f(gap)} mm de hueco; la flecha lineal con un codo sería ${f(elbow.wmax)} mm, en realidad se queda en el hueco porque apoya en la pantalla). Al tocar, reparte la carga sobre el panel en vez de clavarla: no se rompe nada, pero puede verse una aureola momentánea. Sube a 5 mm o a vidrio si os apoyáis mucho.` : `El protector descansa casi sobre la pantalla: un codo lo empuja contra el panel (${f(elbow.wmax)} mm de flecha libre). Reparte la presión, pero para apoyarse sin miedo mejor el marco doble con pozo.`)
+        ? (m.protAbove ? `Con ${prot.t} mm el protector toca la pantalla en cuanto se apoyan ${f(Ptouch / 9.81)} kg en el centro (hay ${f(gap)} mm de hueco; la flecha lineal con un codo sería ${f(elbow.wmax)} mm, en realidad se queda en el hueco porque apoya en la pantalla). Al tocar, reparte la carga sobre el panel en vez de clavarla: no se rompe nada, pero puede verse una aureola momentánea. Sube a 5 mm o a vidrio si os apoyáis mucho.` : `El protector descansa casi sobre la pantalla: un codo lo empuja contra el panel (${f(elbow.wmax)} mm de flecha libre). Reparte la presión, pero para apoyarse sin miedo mejor el marco doble con pozo.`)
         : `Aguanta un codo sin llegar a la pantalla: baja ${f(elbow.wmax)} mm de los ${f(gap)} mm de hueco. Coeficiente de seguridad ${f(sf(elbow.smax, prot.MOR))}.`,
     });
   } else {
     cases.push({ id: 'protector', title: 'Sin protector', icon: 'dice', rows: [], status: 'warn', text: 'Sin protector, dados y miniaturas apoyan directamente en la pantalla. Las pantallas LCD soportan bien una ficha, pero un dado lanzado o un codo puede dejar marcas o dañar el panel. Recomendado: metacrilato de 4 mm en el pozo.' });
   }
 
-  // 2 · travesaños VESA con golpe de 3 g
-  if (p.mount === 'vesa') {
+  // 2 · costillas VESA en la base (golpe de 3 g al dejarla) o travesaños colgados
+  if (p.mount === 'base' && m.ribs.length) {
+    const rb = m.ribs[0], span = rb.x1 - rb.x0 + 2 * p.battenW;   // la base apoya en los listones laterales
+    const beff = 120;   // franja de base que trabaja con la costilla
+    const sec = composite([{ b: p.railW, h: rb.h, yc: p.t + rb.h / 2, E: 10000 }, { b: beff, h: p.t, yc: p.t / 2, E: ply.E * 0.62 }]);
+    const P = (p.tvKg * G * 3) / 4;
+    const xa = (m.railX[0] - (rb.x0 - p.battenW)), xb2 = (m.railX[1] - (rb.x0 - p.battenW));
+    const defl = (Pa, aa, x, L) => { const bb = L - aa; return x <= aa ? (Pa * bb * x * (L * L - bb * bb - x * x)) / (6 * L * I1) : (Pa * aa * (L - x) * (2 * L * x - x * x - aa * aa)) / (6 * L * I1); };
+    const I1 = sec.EI;
+    let wmax = 0;
+    for (let i = 0; i <= 80; i++) { const x = (span * i) / 80; wmax = Math.max(wmax, defl(P, xa, x, span) + defl(P, xb2, x, span)); }
+    const M = P * Math.min(xa, span - xb2);
+    const s = M * sec.ymax / sec.EI * 10000;
+    const feetC = d.fixtures.filter(fx => fx.kind === 'foot' && fx.center).length;
+    cases.push({
+      id: 'rail', title: 'Costillas VESA · golpe al dejarla', icon: 'vesa', target: 'R1',
+      load: `Peso de la tele × 3 g = ${f(p.tvKg * 3 * G)} N en los 4 tornillos`, model: `Costilla de pino ${p.railW} × ${f(rb.h)} encolada a ${beff} mm de base, luz ${f(span)} mm entre listones${feetC ? ' (sin contar las patas centrales)' : ''}`,
+      rows: [['Flecha', wmax, 'mm'], ['Tensión máxima en la costilla', s, 'MPa'], ['Coef. de seguridad (pino 40 MPa)', sf(s, 40), '×'], ['Carga por tornillo M8', P, 'N']],
+      status: verdict(wmax < 2.5 && sf(s, 40) > 3, wmax < 5),
+      text: `La tele va atornillada a la base por sus 4 roscas VESA: su peso baja por las costillas ${feetC ? `y las ${feetC} patas centrales directo a la mesa (con ellas apoyadas la flecha es prácticamente cero)` : 'hasta los listones del perímetro'}. Sin patas, un golpe de 3 g dobla la costilla ${f(wmax)} mm. El marco ya no carga con la tele: solo con el protector y las manos.`,
+    });
+  } else if (p.mount === 'vesa') {
     const Ep = 10000, span = m.innerZ - 2 * Math.min(p.hangerW, m.g - 1) / 2;
     const I = (p.railW * p.railH ** 3) / 12;
     const P = (p.tvKg * G * 3) / 4; // por punto VESA (4 puntos), 3 g
@@ -243,10 +263,13 @@ export function femSpec(d) {
   const rest = feet.filter(q => !fc.includes(q));
   const Zm = m.Z / 2 - p.t / 2;
   const hangers = p.mount === 'vesa' ? m.railX.flatMap(x => [[x, -Zm], [x, Zm]]) : [];
-  const foamPts = d.pieces.filter(pc => pc.role === 'espuma').map(pc => { const r = pc.solids[0].rect; return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2]; });
+  const foamPts = p.mount === 'base' ? m.ribs.flatMap(r => m.railX.map(x => [x, r.z])) : d.pieces.filter(pc => pc.role === 'espuma').map(pc => { const r = pc.solids[0].rect; return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2]; });
+  // costillas: franjas de base con el espesor equivalente a flexión (pino E 10 000 sobre contrachapado)
+  const Eb = PLY[p.plyType].E * 0.62;
+  const ribs = (m.ribs || []).map(r => { const sec = composite([{ b: r.w, h: r.h, yc: p.t + r.h / 2, E: 10000 }, { b: r.w, h: p.t, yc: p.t / 2, E: Eb }]); return { z: r.z, w: r.w, x0: r.x0, x1: r.x1, tEq: Math.cbrt((12 * sec.EI) / (Eb * r.w)) }; });
   return {
     X: m.X, Z: m.Z, t: p.t, y0: m.y0, yF: m.yF, layers: m.twoLayer ? 2 : 1, op1: m.op1, op2: m.op2,
     screws: m.screwPts, ply: PLY[p.plyType], feet: [...fc, ...rest], hangers: hangers.length ? hangers : [[-200, -Zm], [200, -Zm], [-200, Zm], [200, Zm]],
-    handleX: p.handle === 'maleta' ? [-60, 60] : [-70, 70], handleMode: p.handle, baseOn: true, tvKg: p.tvKg, protKg: m.mass.protector + m.mass.cover, mount: p.mount, foamPts,
+    handleX: p.handle === 'maleta' ? [-60, 60] : [-70, 70], handleMode: p.handle, baseOn: true, tvKg: p.tvKg, protKg: m.mass.protector + m.mass.cover, mount: p.mount, foamPts, ribs,
   };
 }

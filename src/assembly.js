@@ -15,7 +15,7 @@ export function planAssembly(d) {
   add({
     key: 'medir', title: 'Medir la tele', flip: false, explode: 0,
     now: ['TV'], fixtures: ['tv'],
-    text: `Antes de cortar nada, mide la tele real (sin peana) y corrige los valores de Diseño › Televisor marcados «medir»: fondo en el borde fino (ahora ${f1(p.tvRimD)} mm) y de la joroba (${f1(p.tvD)}); ancho y alto de la joroba (${p.bumpW} × ${p.bumpH}) y cuánto está desplazada hacia el canto inferior; la posición del centro de las 4 roscas VESA respecto al centro de la tele (${f1(p.vesaDx)} lateral, ${f1(p.vesaDz)} hacia abajo); el marco inferior de la pantalla (${f1(p.bezelBottom)}) y dónde está el receptor del mando (${f1(p.irDx)} desde el centro). Con esto salen bien los tacos colgadores, la ventana del marco y el agujero IR.`,
+    text: `Antes de cortar nada, mide la tele real (sin peana) y corrige los valores de Diseño › Televisor marcados «medir»: fondo en el borde fino (ahora ${f1(p.tvRimD)} mm) y en el centro de la trasera (${f1(p.tvD)}); ancho y alto de la zona donde la trasera curva ya alcanza el fondo máximo (${p.bumpW} × ${p.bumpH}) y cuánto está desplazada hacia el canto inferior (${p.bumpDz}); la posición del centro de las 4 roscas VESA respecto al centro de la tele (${f1(p.vesaDx)} lateral, ${f1(p.vesaDz)} hacia abajo); el marco inferior de la pantalla (${f1(p.bezelBottom)}) y dónde está el receptor del mando (${f1(p.irDx)} desde el centro). Con esto salen bien ${p.mount === 'base' ? 'las costillas VESA de la base' : 'los tacos colgadores'}, la ventana del marco y el agujero IR.`,
     access: 'Mide con la tele boca abajo sobre una manta: regla apoyada en el dorso y calibre o escuadra para los fondos. Todo en milímetros.',
     hw: ['Metro', 'Calibre', 'Escuadra'],
   });
@@ -29,21 +29,21 @@ export function planAssembly(d) {
   add({
     key: 'listones', title: 'Listones en las paredes', flip: false, explode: 0.45,
     done: walls, now: byStep('listones'),
-    text: `Encola los listones de ${p.battenW}×${p.battenH} en la cara interior de las paredes, enrasados a ${p.t} mm del canto inferior (justo el grueso de la base: usa un recorte de tablero como galga). Atornilla desde fuera con 3,5×25 cada ~12 cm; las cabezas quedarán bajo el revestimiento. ${d.pieces.some(pc => pc.role === 'travesano') && d.pieces.filter(pc => pc.role === 'liston').length > 4 ? 'Los listones largos van partidos: deja el hueco para el extremo de cada travesaño VESA.' : ''}`,
+    text: `Encola los listones de ${p.battenW}×${p.battenH} en la cara interior de las paredes, enrasados a ${p.t} mm del canto inferior (justo el grueso de la base: usa un recorte de tablero como galga). Atornilla desde fuera con 3,5×25 cada ~12 cm; las cabezas quedarán bajo el revestimiento. ${d.pieces.filter(pc => pc.role === 'liston').length > 4 ? 'Algunos listones van partidos para dejar paso (travesaños VESA o ranura de cables).' : `Los dos largos van de punta a punta de la pared (${f1(m.innerX)} mm) y los cortos entre ellos: así cada esquina queda atada por un listón entero.`}`,
     access: 'Las paredes aún están sueltas: atornilla cómodamente desde fuera, sobre el banco.',
     hw: ['Cola D3', 'Tornillo 3,5×25', 'Galga de ' + p.t + ' mm'],
   });
   add({
     key: 'caja', title: 'Cerrar el perímetro', flip: false, explode: 0.15,
     done: [...byStep('listones')], now: [...walls, ...byStep('caja').filter(i => !walls.includes(i))],
-    text: `${p.joint === 'dedos' ? 'Encola los dedos y cierra las cuatro esquinas con sargentos.' : p.joint === 'rebaje' ? 'Las paredes largas llevan en cada extremo un galce de ' + p.t + ' × ' + f1(p.t / 2) + ' mm (ancho × fondo) por la cara interior; encaja ahí las laterales con cola.' : 'Unión a tope: las paredes largas pasan por delante de las laterales.'} ${p.cornerBlocks ? 'Pega los cuatro tacos de esquina y atornilla cada pared a ellos desde fuera (dos tornillos por cara).' : ''} ${p.handle === 'maleta' ? 'Encola también la contraplaca del asa detrás de sus dos taladros.' : ''} Comprueba la escuadra midiendo las dos diagonales: deben ser iguales (±1 mm) antes de que fragüe.`,
+    text: `${p.joint === 'dedos' ? 'Encola los dedos y cierra las cuatro esquinas con sargentos.' : p.joint === 'rebaje' ? 'Las paredes largas llevan en cada extremo un galce de ' + p.t + ' × ' + f1(p.t / 2) + ' mm (ancho × fondo) por la cara interior; encaja ahí las laterales con cola.' : 'Unión a tope: las paredes largas pasan por delante de las laterales.'} ${p.cornerBlocks ? 'Pega los cuatro postes de esquina, apoyados en el cruce de los listones, y atornilla cada pared a ellos desde fuera (dos tornillos por cara): atan las esquinas y reciben luego el marco' + (m.protTop ? ' y los tornillos del protector' : '') + '.' : ''} ${p.handle === 'maleta' ? 'Encola también la contraplaca del asa detrás de sus dos taladros.' : ''} Comprueba la escuadra midiendo las dos diagonales: deben ser iguales (±1 mm) antes de que fragüe.`,
     access: `Diagonal teórica: ${f1(Math.hypot(m.X, m.Z))} mm. Trabaja sobre una superficie plana para que la caja no quede alabeada.`,
     hw: ['Cola D3', '4 sargentos', 'Tornillo 3,5×25'],
   });
   add({
     key: 'marco', title: m.twoLayer ? 'Marco: capa inferior (labio)' : 'Marco', flip: false, explode: 0.1,
     done: [...walls, ...byStep('listones'), ...byStep('caja')], now: byStep('marco'),
-    text: `Pinta de negro mate el canto interior de la ventana${m.twoLayer ? ' y la cara superior de esta capa (se verá a través del protector)' : ''}: evita reflejos alrededor de la imagen. Encola el marco sobre el canto de las paredes y los tacos, centrado, y clávalo con puntas sin cabeza cada ~8 cm. Pon peso encima o sargentos con listones.`,
+    text: `Pinta de negro mate el canto interior de la ventana${m.twoLayer ? ' y la cara superior de esta capa (se verá a través del protector)' : ''}: evita reflejos alrededor de la imagen. Encola el marco sobre el canto de las paredes y los postes, centrado, y clávalo con puntas sin cabeza cada ~8 cm. Pon peso encima o sargentos con listones.`,
     access: 'A partir de aquí la caja es rígida: el marco y las paredes forman un cajón abierto por abajo.',
     hw: ['Cola D3', 'Puntas 1,2×25', 'Pintura negra mate'],
   });
@@ -77,35 +77,46 @@ export function planAssembly(d) {
     hw: ['Burlete EPDM 8×' + p.gasket],
   });
   const doneTV = [...doneBox, ...byStep('piel'), ...byStep('burlete')];
+  if (has('costillas')) add({
+    key: 'costillas', title: 'Costillas VESA en la base', flip: false, explode: 0.05,
+    done: ids('base'), now: byStep('costillas'),
+    text: `Sobre el banco, con la base boca arriba: encola las dos costillas de ${p.railW} × ${f1(Math.min(...m.ribs.map(r => r.h)))} mm de punta a punta, con sus ejes a ${f1(m.ribs[0].z)} y ${f1(m.ribs[1].z)} mm del centro (las filas de roscas VESA), y atorníllalas desde debajo de la base con 4 tornillos 3,5×30 cada una. Cuando seque, taladra Ø10 los 4 agujeros VESA (${p.vesa} × ${p.vesa}) atravesando costilla y base, con la plantilla 1:1, y avellana por debajo para que la cabeza del M8 quede enrasada. La altura de la costilla es la que hay de la base al dorso de la tele: así la tele apoya en ellas y no en los tornillos.`,
+    access: 'Comprueba con una regla que las costillas no tocan los listones del perímetro: la base tiene que seguir entrando entre ellos.',
+    hw: ['Cola D3', 'Tornillo 3,5×30 ×8', 'Broca Ø10', 'Avellanador'],
+  });
   add({
     key: 'tv', title: 'Meter la tele', flip: true, explode: 0.3,
     done: doneTV, now: byStep('tv'),
     text: p.mount === 'vesa'
       ? `${!m.twoLayer && m.pt ? 'Primero deja el protector, limpio y sin film por la cara de la pantalla, sobre el burlete. ' : ''}Quita la peana. Con la caja boca abajo, mete la tele boca abajo sobre el ${!m.twoLayer && m.pt ? 'protector' : 'burlete'} (dos personas, guantes de algodón). Atornilla cada travesaño a la tele con dos M8×${p.railH + 12} y arandela ancha (rosca VESA ${p.vesa}×${p.vesa}, no aprietes más de lo necesario), y luego sus extremos a los insertos de los tacos colgadores con M5. Si el travesaño no apoya a la vez en tele y tacos, calza con arandelas.`
-      : `Quita la peana. Con la caja boca abajo, mete la tele boca abajo sobre el burlete. Los tacos de espuma van pegados en la base: al cerrarla, la aprietan contra el marco.`,
+      : p.mount === 'base'
+        ? `${m.protTop || !m.pt || m.twoLayer ? '' : 'Primero deja el protector, limpio, sobre el burlete. '}Quita la peana. Con la caja boca abajo, mete la tele boca abajo sobre el burlete (dos personas, guantes de algodón) y céntrala: debe quedar la misma holgura (${f1(p.fit)} mm) a los cuatro lados. Enrosca a mano dos varillas M8 de 80 mm en dos roscas VESA en diagonal: serán las guías para bajar la base.`
+        : `Quita la peana. Con la caja boca abajo, mete la tele boca abajo sobre el burlete. Los tacos de espuma van pegados en la base: al cerrarla, la aprietan contra el marco.`,
     access: 'Antes de cerrar enciende la tele y comprueba que la imagen queda centrada en la ventana del marco.',
-    hw: p.mount === 'vesa' ? ['M8 ×4 + arandelas', 'M5 ×4', 'Llave Allen'] : ['Espuma EVA'],
+    hw: p.mount === 'vesa' ? ['M8 ×4 + arandelas', 'M5 ×4', 'Llave Allen'] : p.mount === 'base' ? ['Varillas guía M8 ×2'] : ['Espuma EVA'],
   });
   if (has('cables')) add({
     key: 'cables', title: 'Cables' + (p.fans ? ' y ventiladores' : ''), flip: true, explode: 0.2,
     done: [...doneTV, ...byStep('tv')], now: byStep('cables'),
-    text: `${p.source === 'stick' ? 'Enchufa el stick al HDMI de la tele con el alargo en ángulo y pégalo con velcro al dorso. ' : p.source === 'minipc' ? 'Fija el mini-PC con velcro a la base junto al lateral de conexiones (ventilador hacia una ranura), conecta su HDMI a la tele y alimenta tele y mini-PC desde la regleta interior. ' : ''}${p.cable === 'panel' ? (p.source === 'externa' ? 'Atornilla la base IEC y el HDMI de panel al lateral. Conecta por dentro el cable IEC→figura 8 y el alargo HDMI a la tele.' : 'Atornilla la base IEC al lateral y conecta por dentro el cable IEC→figura 8' + (p.source === 'minipc' ? ' a la regleta.' : ' a la tele.')) : p.cable === 'pasamuros' ? (p.source === 'externa' ? 'Pasa el cable de corriente y el HDMI por los pasamuros y conéctalos a la tele.' : 'Pasa el cable de corriente por el pasamuros.') : 'Conecta los cables a la tele y sácalos por las ranuras del canto inferior; la base los pinza al cerrar.'} Fija los cables con bridas adhesivas a la base de los tacos, sin tensión en los conectores. ${p.fans ? 'Atornilla los ventiladores a la pared del fondo (soplando hacia fuera) y enchúfalos al USB de la tele: se encienden con ella.' : ''}`,
+    text: `${p.source === 'stick' ? 'Enchufa el stick al HDMI de la tele con el alargo en ángulo y pégalo con velcro al dorso. ' : p.source === 'minipc' ? 'Fija el mini-PC con velcro a la base junto al lateral de conexiones (ventilador hacia una ranura), conecta su HDMI a la tele y alimenta tele y mini-PC desde la regleta interior. ' : ''}${p.cable === 'panel' ? (p.source === 'externa' ? 'Atornilla la base IEC y el HDMI de panel al lateral. Conecta por dentro el cable IEC→figura 8 y el alargo HDMI a la tele.' : 'Atornilla la base IEC al lateral y conecta por dentro el cable IEC→figura 8' + (p.source === 'minipc' ? ' a la regleta.' : ' a la tele.')) : p.cable === 'pasamuros' ? (p.source === 'externa' ? 'Pasa el cable de corriente y el HDMI por los pasamuros y conéctalos a la tele.' : 'Pasa el cable de corriente por el pasamuros.') : 'Conecta los cables a la tele y sácalos por las ranuras del canto inferior; la base los pinza al cerrar.'} Fija los cables con bridas adhesivas a las paredes, sin tensión en los conectores. ${p.fans ? 'Atornilla los ventiladores a la pared del fondo (soplando hacia fuera) y enchúfalos al USB de la tele: se encienden con ella.' : ''}`,
     access: 'Deja un bucle de cable dentro: si alguien tira desde fuera, que no arranque el conector de la tele.',
     hw: ['Bridas adhesivas', p.cable === 'panel' ? 'Tornillos M3' : 'Pasamuros'],
   });
   add({
     key: 'base', title: 'Cerrar la base', flip: true, explode: 0.25,
-    done: [...doneTV, ...byStep('tv'), ...byStep('cables')], now: byStep('base'),
-    text: `Presenta la base (${f1(m.innerX - 1)} × ${f1(m.innerZ - 1)} mm, 0,5 mm de holgura por lado) sobre los listones y atorníllala con ${p.baseFix === 'magnetos' ? '4 tornillos M5 de seguridad (los imanes la sujetan el resto del tiempo)' : `${p.baseScrews} tornillos ${p.baseFix === 'insertos' ? 'M5×16 avellanados a los insertos' : 'para madera 4×25'}`}. ${p.footH ? `Atornilla las ${p.feet} patas de goma.` : ''} Esta es la tapa de servicio: se quita siempre con la caja boca abajo.`,
-    access: 'Para volver a acceder a cables o a la tele: boca abajo, fuera tornillos, fuera base. Nada más.',
-    hw: p.baseFix === 'insertos' ? ['M5×16 ×' + p.baseScrews, 'Llave Allen 3'] : ['Destornillador'],
+    done: [...doneTV, ...byStep('tv'), ...byStep('cables')], now: [...byStep('base'), ...byStep('costillas')],
+    text: `${p.mount === 'base' ? `Baja la base con las costillas hacia dentro por las dos varillas guía hasta que asiente en los listones. Mete los dos M8×${m.boltL} avellanados en los agujeros libres y apriétalos con suavidad, cambia las varillas por los otros dos y aprieta los cuatro (firme, sin pasarte: la rosca de la tele es de plástico reforzado). Si la base no llega a apoyar en los listones porque la pantalla ya pisa el burlete, calza con arandelas entre costilla y tele, o lija la costilla. ` : ''}Presenta la base (${f1(m.innerX - 1)} × ${f1(m.innerZ - 1)} mm, 0,5 mm de holgura por lado) sobre los listones y atorníllala con ${p.baseFix === 'magnetos' ? '4 tornillos M5 de seguridad (los imanes la sujetan el resto del tiempo)' : `${p.baseScrews} tornillos ${p.baseFix === 'insertos' ? 'M5×16 avellanados a los insertos' : 'para madera 4×25'}`}. ${p.footH ? `Atornilla las ${d.fixtures.filter(f => f.kind === 'foot').length} patas de goma${d.fixtures.some(f => f.center) ? ' (las cuatro centrales, junto a los tornillos VESA: llevan el peso de la tele directo a la mesa)' : ''}.` : ''} Esta es la tapa de servicio: se quita siempre con la caja boca abajo.`,
+    access: p.mount === 'base' ? 'Para volver a entrar: boca abajo, quita los tornillos de la base y los 4 M8 y levántala; la tele se queda en la caja apoyada en el burlete.' : 'Para volver a acceder a cables o a la tele: boca abajo, fuera tornillos, fuera base. Nada más.',
+    hw: [...(p.mount === 'base' ? ['M8×' + m.boltL + ' avellanado ×4'] : []), ...(p.baseFix === 'insertos' ? ['M5×16 ×' + p.baseScrews, 'Llave Allen 3'] : ['Destornillador'])],
   });
   if (has('protector')) add({
     key: 'protector', title: 'Protector de pantalla', flip: false, explode: 0.2,
     done: d.pieces.filter(pc => !['protector', 'tapa'].includes(pc.role) && !['remate'].includes(pc.step)).map(pc => pc.id), now: byStep('protector'),
-    text: `Dale la vuelta. Quita el film protector solo por la cara de abajo, limpia la pantalla con un paño de microfibra y deja caer el ${d.pieces.find(x => x.role === 'protector').name.toLowerCase()} en el pozo. Debe entrar sin forzar (1 mm de holgura por lado). Puedes poner dos tiras de fieltro adhesivo de 1 mm sobre el labio para que no vibre.`,
-    access: 'Se puede sacar con una ventosa para limpiar por debajo.',
-    hw: ['Ventosa', 'Microfibra'],
+    text: m.protTop
+      ? `Dale la vuelta. Pega cuatro tiras de fieltro de 1 mm en las esquinas del marco, limpia la pantalla, quita el film de la cara de abajo y apoya el ${d.pieces.find(x => x.role === 'protector').name.toLowerCase()} encima, enrasado con los cantos de la caja. Atorníllalo en las cuatro esquinas a los postes con 3,5×30 y arandela de copa (taladros Ø5 holgados: el metacrilato dilata). Queda a ${f1(m.protY - m.yS)} mm de la pantalla.`
+      : `Dale la vuelta. Quita el film protector solo por la cara de abajo, limpia la pantalla con un paño de microfibra y deja caer el ${d.pieces.find(x => x.role === 'protector').name.toLowerCase()} en el pozo. Debe entrar sin forzar (1 mm de holgura por lado). Puedes poner dos tiras de fieltro adhesivo de 1 mm sobre el labio para que no vibre.`,
+    access: m.protTop ? 'Para limpiar por debajo: cuatro tornillos y fuera. Los cantos pulidos del metacrilato quedan a la vista: con cantoneras, estas los protegen.' : 'Se puede sacar con una ventosa para limpiar por debajo.',
+    hw: m.protTop ? ['Tornillo 3,5×30 + arandela de copa ×4', 'Fieltro 1 mm', 'Microfibra'] : ['Ventosa', 'Microfibra'],
   });
   if (has('remate')) add({
     key: 'remate', title: 'Asa, cantoneras y topes', flip: false, explode: 0,
@@ -122,7 +133,7 @@ export function planAssembly(d) {
     hw: ['Cierres de palanca', 'Espuma 10 mm'],
   });
   // tiempos orientativos (min de trabajo + espera de secado)
-  const T = { medir: [20, 0], corte: [100, 0], listones: [40, 30], caja: [45, 60], marco: [30, 60], tacos: [30, 60], marco2: [30, 60], piel: [100, 20], burlete: [10, 0], tv: [25, 0], cables: [20, 0], base: [15, 0], protector: [5, 0], remate: [30, 0], tapa: [70, 30] };
+  const T = { medir: [20, 0], corte: [100, 0], listones: [40, 30], caja: [45, 60], marco: [30, 60], tacos: [30, 60], marco2: [30, 60], piel: [100, 20], burlete: [10, 0], costillas: [30, 45], tv: [25, 0], cables: [20, 0], base: [15, 0], protector: [5, 0], remate: [30, 0], tapa: [70, 30] };
   steps.forEach(s => { const [w, dry] = T[s.key] || [20, 0]; s.min = w; s.dry = dry; });
   return steps;
 }

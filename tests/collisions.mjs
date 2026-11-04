@@ -7,7 +7,7 @@ const box=s=>{const [u0,v0,u1,v1]=s.rect,[t0,t1]=[Math.min(...s.t),Math.max(...s
 const ov=(a,b)=>{const d=[0,1,2].map(i=>Math.min(a[i+3],b[i+3])-Math.max(a[i],b[i]));return d.every(x=>x>0.05)?d:null;};
 function check(p,label){
  const d=M.buildDesign(p); const sol=[];
- d.pieces.forEach(pc=>{ if(pc.role==='tv') { const tv=pc.tv; sol.push({id:'TVrim',b:[tv.x0,tv.yRim,tv.z0,tv.x1,tv.yS,tv.z1]}); const bu=tv.bump; sol.push({id:'TVbump',b:[bu.cx-bu.w/2,tv.yB,bu.cz-bu.h/2,bu.cx+bu.w/2,tv.yRim,bu.cz+bu.h/2]}); return;}
+ d.pieces.forEach(pc=>{ if(pc.role==='tv') { const tv=pc.tv, pr=M.tvProfile(p,tv), nx=16, nz=10; for(let i=0;i<nx;i++)for(let j=0;j<nz;j++){ const x0=tv.x0+(tv.x1-tv.x0)*i/nx, x1=tv.x0+(tv.x1-tv.x0)*(i+1)/nx, z0=tv.z0+(tv.z1-tv.z0)*j/nz, z1=tv.z0+(tv.z1-tv.z0)*(j+1)/nz; let dm=0; for(const x of [x0,(x0+x1)/2,x1])for(const z of [z0,(z0+z1)/2,z1]) dm=Math.max(dm,pr.depth(x,z)); sol.push({id:'TV',pc:'TV',b:[x0,tv.yS-dm,z0,x1,tv.yS,z1]}); } return;}
    (pc.solids||[]).forEach((s,i)=>sol.push({id:pc.id+(pc.solids.length>1?'.'+i:''),pc:pc.id,b:box(s),s}));});
  const out=[];
  for(let i=0;i<sol.length;i++)for(let j=i+1;j<sol.length;j++){ if(sol[i].pc&&sol[i].pc===sol[j].pc) continue; const o=ov(sol[i].b,sol[j].b); if(o) out.push(`${sol[i].id}x${sol[j].id} [${o.map(x=>x.toFixed(1))}]`);}
@@ -15,7 +15,7 @@ function check(p,label){
 }
 const D=P.DEFAULTS;
 check(D,"default"); check({...D,vesaDx:10},"vesaDx10"); check({...D,vesa:100},"vesa100"); check({...D,vesa:400,vesaDx:0},"vesa400");
-for(const [k,v] of [['frame','simple'],['mount','espuma'],['joint','dedos'],['joint','rebaje'],['cable','ranura'],['cable','panel'],['handle','embutida'],['handle','laterales'],['lid',true],['portSide','izquierda'],['frame2Split',false],['pockets',true],['fans',true],['cornerBlocks',false],['protector','ninguno']]) check({...D,[k]:v},k+'='+v);
-check({...D,frame:'simple',protector:'ninguno'},'simple+noprot');
+for(const [k,v] of [['frame','rebaje'],['frame','pinzado'],['mount','vesa'],['mount','espuma'],['centerFeet',false],['source','minipc'],['joint','dedos'],['joint','rebaje'],['cable','ranura'],['cable','panel'],['handle','embutida'],['handle','laterales'],['lid',true],['portSide','izquierda'],['frame2Split',false],['pockets',true],['fans',true],['cornerBlocks',false],['protector','ninguno']]) check({...D,[k]:v},k+'='+v);
+check({...D,frame:'simple',protector:'ninguno'},'simple+noprot'); check({...D,mount:'vesa',frame:'rebaje'},'antiguo');
 check({...D,portBay:60,portSide:'izquierda'},'bay60 izq');
 check({...D,margin:0},'margin0');

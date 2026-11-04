@@ -3,9 +3,9 @@
 
 export const DEFAULTS = {
   // ── televisor ──
-  tvW: 972.9, tvH: 570, tvD: 55.1, tvRimD: 27, tvKg: 9.5,
+  tvW: 972.9, tvH: 570, tvD: 55.1, tvRimD: 16, tvKg: 9.5,
   screenW: 951.8, screenH: 535.4, bezelBottom: 20,
-  bumpW: 720, bumpH: 380, bumpDz: 25,
+  bumpW: 760, bumpH: 300, bumpDz: 70,
   vesa: 200, vesaDx: 0, vesaDz: 25,
   portSide: 'derecha', irHole: true, irDx: 0,
 
@@ -14,13 +14,13 @@ export const DEFAULTS = {
   fit: 3, margin: 20, portBay: 0,
   gapBelow: 22, gasket: 3,
   joint: 'tope', battenW: 20, battenH: 20, cornerBlocks: true,
-  footH: 8, feet: 6,
+  footH: 8, feet: 6, centerFeet: true,
 
   // ── marco y protector ──
-  frame: 'rebaje', frame2Split: true, pockets: false, cardSlots: false, reveal: 1, protector: 'acrilico4', protOverlap: 10,
+  frame: 'simple', frame2Split: true, pockets: false, cardSlots: false, reveal: 1, protector: 'acrilico4', protOverlap: 10,
 
   // ── soporte de la tele ──
-  mount: 'vesa', railW: 40, railH: 20, hangerW: 20,
+  mount: 'base', railW: 40, railH: 20, hangerW: 20,
 
   // ── base extraíble ──
   baseFix: 'insertos', baseScrews: 14, baseVents: true,
@@ -69,15 +69,15 @@ export const SCHEMA = [
   { id: 'tv', label: 'Televisor', icon: 'tv', params: [
     { k: 'tvW', l: 'Ancho total', u: 'mm', min: 600, max: 1500, step: 0.1 },
     { k: 'tvH', l: 'Alto total', u: 'mm', min: 350, max: 900, step: 0.1 },
-    { k: 'tvD', l: 'Fondo máximo (joroba)', u: 'mm', min: 20, max: 120, step: 0.1 },
-    { k: 'tvRimD', l: 'Fondo en el borde · medir', u: 'mm', min: 6, max: 80, step: 0.5 },
+    { k: 'tvD', l: 'Fondo máximo (centro de la trasera)', u: 'mm', min: 20, max: 120, step: 0.1 },
+    { k: 'tvRimD', l: 'Fondo en el borde fino · medir', u: 'mm', min: 6, max: 80, step: 0.5 },
     { k: 'tvKg', l: 'Peso sin peana', u: 'kg', min: 3, max: 30, step: 0.1 },
     { k: 'screenW', l: 'Área visible · ancho', u: 'mm', min: 500, max: 1500, step: 0.1 },
     { k: 'screenH', l: 'Área visible · alto', u: 'mm', min: 300, max: 900, step: 0.1 },
     { k: 'bezelBottom', l: 'Marco inferior de la tele · medir', u: 'mm', min: 4, max: 60, step: 0.5 },
-    { k: 'bumpW', l: 'Joroba trasera · ancho · medir', u: 'mm', min: 100, max: 1400, step: 1 },
-    { k: 'bumpH', l: 'Joroba trasera · alto · medir', u: 'mm', min: 100, max: 800, step: 1 },
-    { k: 'bumpDz', l: 'Joroba · desplazada hacia abajo', u: 'mm', min: -200, max: 200, step: 1 },
+    { k: 'bumpW', l: 'Trasera: zona de fondo máximo · ancho · medir', u: 'mm', min: 100, max: 1400, step: 1 },
+    { k: 'bumpH', l: 'Trasera: zona de fondo máximo · alto · medir', u: 'mm', min: 100, max: 800, step: 1 },
+    { k: 'bumpDz', l: 'Trasera: esa zona, desplazada hacia abajo · medir', u: 'mm', min: -200, max: 200, step: 1 },
     { k: 'vesa', l: 'Patrón VESA', u: 'mm', min: 75, max: 400, step: 25 },
     { k: 'vesaDx', l: 'VESA · desvío lateral · medir', u: 'mm', min: -200, max: 200, step: 1 },
     { k: 'vesaDz', l: 'VESA · desvío hacia abajo · medir', u: 'mm', min: -200, max: 200, step: 1 },
@@ -91,17 +91,18 @@ export const SCHEMA = [
     { k: 'fit', l: 'Holgura tele ↔ caja', u: 'mm', min: 0, max: 15, step: 0.5 },
     { k: 'margin', l: 'Margen interior (cámara perimetral)', u: 'mm', min: 0, max: 120, step: 1 },
     { k: 'portBay', l: 'Bahía extra en el lado de conexiones', u: 'mm', min: 0, max: 200, step: 1 },
-    { k: 'gapBelow', l: 'Hueco bajo la joroba', u: 'mm', min: 5, max: 80, step: 1 },
+    { k: 'gapBelow', l: 'Hueco bajo la tele (alto de las costillas)', u: 'mm', min: 5, max: 80, step: 1 },
     { k: 'gasket', l: 'Burlete bajo el marco', u: 'mm', min: 0, max: 10, step: 0.5 },
     { k: 'joint', l: 'Unión de esquinas', type: 'select', opts: { tope: 'A tope + taco interior', rebaje: 'Rebaje (galce) + taco', dedos: 'Dedos (finger joint, CNC o sierra)' } },
     { k: 'battenW', l: 'Listón interior · ancho', u: 'mm', min: 10, max: 40, step: 1 },
     { k: 'battenH', l: 'Listón interior · alto', u: 'mm', min: 10, max: 40, step: 1 },
-    { k: 'cornerBlocks', l: 'Tacos verticales en esquinas', type: 'bool' },
+    { k: 'cornerBlocks', l: 'Postes de esquina (apoyo del marco y del protector)', type: 'bool' },
     { k: 'footH', l: 'Altura de patas de goma', u: 'mm', min: 0, max: 30, step: 1 },
-    { k: 'feet', l: 'Número de patas', type: 'select', opts: { 4: '4', 6: '6', 8: '8' } },
+    { k: 'feet', l: 'Patas del perímetro', type: 'select', opts: { 4: '4', 6: '6', 8: '8' } },
+    { k: 'centerFeet', l: 'Patas centrales bajo la tele (con sujeción a la base)', type: 'bool' },
   ] },
   { id: 'marco', label: 'Marco y protector', icon: 'frame', params: [
-    { k: 'frame', l: 'Tipo de marco', type: 'select', opts: { rebaje: 'Doble capa con pozo para el protector', simple: 'Simple (protector pinzado bajo el marco)' } },
+    { k: 'frame', l: 'Tipo de marco', type: 'select', opts: { simple: 'Simple · protector encima, atornillado en las esquinas', rebaje: 'Doble capa con pozo para el protector', pinzado: 'Simple · protector pinzado bajo el marco' } },
     { k: 'frame2Split', l: 'Capa superior en 4 listones (ahorra un tablero)', type: 'bool' },
     { k: 'pockets', l: 'Bolsillos para dados en el marco (necesita margen ≥ 40)', type: 'bool' },
     { k: 'cardSlots', l: 'Ranuras para cartas en el canto del jugador', type: 'bool' },
@@ -110,10 +111,10 @@ export const SCHEMA = [
     { k: 'protOverlap', l: 'Apoyo del protector en el marco', u: 'mm', min: 4, max: 30, step: 1 },
   ] },
   { id: 'soporte', label: 'Sujeción de la tele', icon: 'vesa', params: [
-    { k: 'mount', l: 'Sistema', type: 'select', opts: { vesa: 'Travesaños VESA colgados', espuma: 'Tacos de espuma sobre la base' } },
-    { k: 'railW', l: 'Travesaño · ancho', u: 'mm', min: 20, max: 80, step: 1 },
-    { k: 'railH', l: 'Travesaño · alto', u: 'mm', min: 10, max: 50, step: 1 },
-    { k: 'hangerW', l: 'Taco colgador · fondo', u: 'mm', min: 10, max: 60, step: 1 },
+    { k: 'mount', l: 'Sistema', type: 'select', opts: { base: 'Atornillada a la base por el VESA (2 costillas)', vesa: 'Travesaños VESA colgados del marco', espuma: 'Tacos de espuma sobre la base' } },
+    { k: 'railW', l: 'Costilla / travesaño · ancho', u: 'mm', min: 20, max: 80, step: 1 },
+    { k: 'railH', l: 'Travesaño colgado · alto', u: 'mm', min: 10, max: 50, step: 1 },
+    { k: 'hangerW', l: 'Taco colgador · fondo (travesaños)', u: 'mm', min: 10, max: 60, step: 1 },
   ] },
   { id: 'base', label: 'Base extraíble', icon: 'base', params: [
     { k: 'baseFix', l: 'Fijación', type: 'select', opts: { insertos: 'Tornillos M5 + insertos roscados', tirafondos: 'Tornillos para madera', magnetos: 'Imanes + 4 tornillos' } },
@@ -145,9 +146,9 @@ export const PARAM_INDEX = Object.fromEntries(SCHEMA.flatMap(g => g.params.map(p
 
 // Combinaciones de partida: geometría + montaje + estética.
 export const PRESETS = [
-  { id: 'maleta', label: 'Maleta', sub: 'tolex negro, asa, cantoneras', p: { frame: 'rebaje', cover: 'tolex', coverColor: '#232325', frameFinish: 'negro', handle: 'maleta', corners: true, lid: false, margin: 20, protector: 'acrilico4' } },
-  { id: 'flight', label: 'Flight case', sub: 'con tapa y cierres', p: { frame: 'rebaje', cover: 'tolex', coverColor: '#2e2f31', frameFinish: 'negro', handle: 'maleta', corners: true, lid: true, latches: 4, margin: 20, protector: 'acrilico4' } },
+  { id: 'maleta', label: 'Maleta', sub: 'tolex negro, asa, cantoneras', p: { frame: 'simple', cover: 'tolex', coverColor: '#232325', frameFinish: 'negro', handle: 'maleta', corners: true, lid: false, margin: 20, protector: 'acrilico4' } },
+  { id: 'flight', label: 'Flight case', sub: 'con tapa y cierres', p: { frame: 'simple', cover: 'tolex', coverColor: '#2e2f31', frameFinish: 'negro', handle: 'maleta', corners: true, lid: true, latches: 4, margin: 20, protector: 'acrilico4' } },
   { id: 'taberna', label: 'Taberna', sub: 'madera vista y terciopelo', p: { frame: 'rebaje', cover: 'terciopelo', coverColor: '#4a1f24', frameFinish: 'madera', handle: 'laterales', corners: false, lid: false, margin: 60, protector: 'vidrio4', pockets: true } },
   { id: 'minimal', label: 'Mínima', sub: 'lo más fina y ligera', p: { frame: 'simple', cover: 'pintura', coverColor: '#2b2d30', frameFinish: 'negro', handle: 'ninguna', corners: false, lid: false, margin: 8, protector: 'ninguno', gapBelow: 22, cornerBlocks: true } },
-  { id: 'cuero', label: 'Biblioteca', sub: 'polipiel marrón, asa embutida', p: { frame: 'rebaje', cover: 'polipiel', coverColor: '#5b3a26', frameFinish: 'madera', handle: 'embutida', corners: true, lid: false, margin: 30, protector: 'acrilico5' } },
+  { id: 'cuero', label: 'Biblioteca', sub: 'polipiel marrón, asa embutida', p: { frame: 'simple', cover: 'polipiel', coverColor: '#5b3a26', frameFinish: 'madera', handle: 'embutida', corners: true, lid: false, margin: 30, protector: 'acrilico5' } },
 ];

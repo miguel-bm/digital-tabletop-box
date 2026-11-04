@@ -190,12 +190,17 @@ export function buildDesign(p) {
 
   // ── marco ──
   const frameMat = p.frameFinish === 'madera' ? 'plyFinish' : p.frameFinish === 'negro' ? 'black' : 'cover';
+  const irPos = [tv.cx + p.irDx, (tv.z1 + scr.z1) / 2];
+  const irCovered = p.irHole && !(irPos[1] < op1[3]);   // fuera de la ventana: el marco lo tapa
+  const irF1 = irCovered ? [{ circle: [irPos[0], irPos[1], 5], tag: 'Ventana IR Ø10' }] : [];
+  const irF2 = irCovered && op2 && irPos[1] > op2[3] ? [{ circle: [irPos[0], irPos[1], 5], tag: 'Ventana IR Ø10' }] : [];
   add({ id: 'F1', key: 'frame1', name: twoLayer ? 'Marco · capa inferior (labio)' : 'Marco', role: 'marco', mat: twoLayer ? 'black' : frameMat, step: 'marco',
-    solids: [{ plane: 'XZ', rect: outerRect, t: [yF, yF + t], holes: [{ rect: op1 }] }], explode: [0, 200, 0] });
+    solids: [{ plane: 'XZ', rect: outerRect, t: [yF, yF + t], holes: [{ rect: op1 }, ...irF1] }], explode: [0, 200, 0] });
   if (twoLayer) {
     add({ id: 'F2', key: 'frame2', name: 'Marco · capa superior (pozo)', role: 'marco', mat: frameMat, step: 'marco2',
-      solids: [{ plane: 'XZ', rect: outerRect, t: [yF + t, yF + 2 * t], holes: [{ rect: op2 }] }], explode: [0, 280, 0] });
+      solids: [{ plane: 'XZ', rect: outerRect, t: [yF + t, yF + 2 * t], holes: [{ rect: op2 }, ...irF2] }], explode: [0, 280, 0] });
   }
+  if (!p.irHole) warn('warn', 'El marco tapa el bisel inferior de la tele, donde está el receptor del mando: sin ventana IR solo podrás manejarla con la app SmartThings o por HDMI-CEC.');
   if (ring1 < 22) warn('warn', `El marco queda muy estrecho (${r1(ring1)} mm en su lado más fino): frágil al cortar y manipular. Aumenta el margen interior.`);
   if (ring2 !== null && ring2 < 18) warn('warn', `La capa superior del marco queda de ${r1(ring2)} mm en su lado más fino. Aumenta el margen o reduce el apoyo del protector.`);
   if (protRect && twoLayer && (protRect[0] < xi0 + 2 || protRect[2] > xi1 - 2 || protRect[1] < zi0 + 2 || protRect[3] > zi1 - 2)) {
@@ -381,7 +386,7 @@ export function buildDesign(p) {
     hw.push({ g: 'Base', name: `Pata de goma Ø22 × ${p.footH} con tornillo`, qty: nf, unit: 0.5 });
   }
   if (p.handle === 'maleta') {
-    fixtures.push({ kind: 'handle', pos: [0, midY(battenTop, yF), zo0 - ct], span: 120, step: 'remate' });
+    fixtures.push({ kind: 'handle', pos: [0, midY(battenTop, yF), zo0 - ct], span: 120, step: 'remate', follow: 'W1' });
     hw.push({ g: 'Transporte', name: 'Asa de maleta / amplificador 120 mm entre ejes', qty: 1, unit: 9 });
     hw.push({ g: 'Transporte', name: 'Tornillo M6 × 40 + tuerca de garra (asa)', qty: 2, unit: 0.6 });
   } else if (p.handle === 'embutida') {
@@ -399,24 +404,41 @@ export function buildDesign(p) {
     hw.push({ g: 'Transporte', name: 'Cantonera metálica de maleta 30 mm', qty: 8, unit: 1.2 });
   }
   if (p.standFeet) {
-    [-1, 1].forEach(s => fixtures.push({ kind: 'bumper', pos: [s * (X / 2 - 90), y0 + H / 2, zo1 + ct], step: 'remate' }));
+    [-1, 1].forEach(s => fixtures.push({ kind: 'bumper', pos: [s * (X / 2 - 90), y0 + H / 2, zo1 + ct], step: 'remate', follow: 'W2' }));
     hw.push({ g: 'Transporte', name: 'Tope de goma Ø20 (para dejarla de pie)', qty: 2, unit: 0.4 });
   }
   if (p.fans) {
-    fanX.forEach(x => fixtures.push({ kind: 'fan', pos: [x, battenTop + Math.max(31, freeH / 2), zo0 + t], step: 'tv' }));
+    fanX.forEach(x => fixtures.push({ kind: 'fan', pos: [x, battenTop + Math.max(31, freeH / 2), zo0 + t], step: 'cables', follow: 'W1' }));
     hw.push({ g: 'Aire', name: 'Ventilador 60×60×15 USB 5 V (silencioso)', qty: 2, unit: 9 });
     hw.push({ g: 'Aire', name: 'Rejilla metálica 60 mm + 4 tornillos M3', qty: 2, unit: 1 });
   }
   if (p.cable === 'panel') {
-    fixtures.push({ kind: 'iec', pos: [portRight ? xo1 + ct : xo0 - ct, cy, cz[0]], sgn: portRight ? 1 : -1, step: 'cables' });
-    fixtures.push({ kind: 'hdmi', pos: [portRight ? xo1 + ct : xo0 - ct, cy, cz[1]], sgn: portRight ? 1 : -1, step: 'cables' });
+    fixtures.push({ kind: 'iec', pos: [portRight ? xo1 + ct : xo0 - ct, cy, cz[0]], sgn: portRight ? 1 : -1, step: 'cables', follow: portRight ? 'W4' : 'W3' });
+    fixtures.push({ kind: 'hdmi', pos: [portRight ? xo1 + ct : xo0 - ct, cy, cz[1]], sgn: portRight ? 1 : -1, step: 'cables', follow: portRight ? 'W4' : 'W3' });
     hw.push({ g: 'Cables', name: 'Base IEC C14 de panel con fusible (y opcional interruptor)', qty: 1, unit: 4 });
     hw.push({ g: 'Cables', name: 'Alargo HDMI macho–hembra de panel (30 cm)', qty: 1, unit: 7 });
     hw.push({ g: 'Cables', name: 'Cable interior IEC C13 → figura 8 (C7), 50 cm', qty: 1, unit: 5 });
   } else if (p.cable === 'pasamuros') {
-    cz.forEach(z => fixtures.push({ kind: 'grommet', pos: [portRight ? xo1 + ct : xo0 - ct, cy, z], r: p.cableDia / 2, sgn: portRight ? 1 : -1, step: 'cables' }));
+    cz.forEach(z => fixtures.push({ kind: 'grommet', pos: [portRight ? xo1 + ct : xo0 - ct, cy, z], r: p.cableDia / 2, sgn: portRight ? 1 : -1, step: 'cables', follow: portRight ? 'W4' : 'W3' }));
     hw.push({ g: 'Cables', name: `Pasamuros de cepillo / goma Ø${p.cableDia}`, qty: 2, unit: 1.5 });
   }
+  // puertos de la tele y cables hasta la pared de conexiones
+  {
+    const sgn = portRight ? 1 : -1;
+    const bx = p.bumpW / 2 * sgn + tv.cx;
+    const yc = (yB + yRim) / 2;
+    const ports = [[bx, yc, p.bumpDz + p.bumpH / 2 - 50, 'power'], [bx, yc, p.bumpDz - 40, 'hdmi']];
+    const wallX = portRight ? xo1 + ct : xo0 - ct, wallIn = portRight ? xi1 : xi0;
+    const cyIn = Math.min(cy, yRim - 8);
+    ports.forEach(([x, y, z, k], i) => {
+      fixtures.push({ kind: 'port', pos: [x, y, z], sgn, k, step: 'tv', follow: 'TV' });
+      const zc = cz[k === 'power' ? 0 : 1];
+      const pts = [[x + sgn * 4, y, z], [x + sgn * 40, y - 6, z], [wallIn - sgn * 40, Math.max(yBaseTop + 10, cyIn - 6), (z + zc) / 2], [wallIn - sgn * 12, cy, zc], [wallX + sgn * 30, cy, zc], [wallX + sgn * 110, Math.max(6, cy * 0.4), zc + 30 * (i ? 1 : -1)], [wallX + sgn * 380, 6, zc + 120 * (i ? 1 : -1)]];
+      fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts, r: k === 'power' ? 3.2 : 3.8, color: k === 'power' ? '#1b1b1c' : '#2a2b30', step: 'cables' });
+    });
+    if (irCovered) fixtures.push({ kind: 'ir', pos: [irPos[0], yS, irPos[1]], step: 'tv', follow: 'TV' });
+  }
+
   if (p.lid) {
     const lc = 1.5, lt = t, sk = p.lidSkirt;
     const L0 = [-outer.X / 2 - lc - t, -outer.Z / 2 - lc - t, outer.X / 2 + lc + t, outer.Z / 2 + lc + t];

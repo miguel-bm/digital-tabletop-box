@@ -7,7 +7,7 @@ export const DEFAULTS = {
   screenW: 951.8, screenH: 535.4, bezelBottom: 20,
   bumpW: 720, bumpH: 380, bumpDz: 25,
   vesa: 200, vesaDx: 0, vesaDz: 25,
-  portSide: 'derecha',
+  portSide: 'derecha', irHole: true, irDx: 0,
 
   // ── caja ──
   t: 10, plyType: 'abedul',
@@ -82,6 +82,8 @@ export const SCHEMA = [
     { k: 'vesaDx', l: 'VESA · desvío lateral · medir', u: 'mm', min: -200, max: 200, step: 1 },
     { k: 'vesaDz', l: 'VESA · desvío hacia abajo · medir', u: 'mm', min: -200, max: 200, step: 1 },
     { k: 'portSide', l: 'Lado de conexiones', type: 'select', opts: { derecha: 'Derecha (mirando la pantalla)', izquierda: 'Izquierda' } },
+    { k: 'irHole', l: 'Ventana para el receptor del mando (IR)', type: 'bool' },
+    { k: 'irDx', l: 'Receptor IR · desvío desde el centro · medir', u: 'mm', min: -480, max: 480, step: 1 },
   ] },
   { id: 'caja', label: 'Caja', icon: 'box', params: [
     { k: 't', l: 'Grosor del contrachapado', u: 'mm', min: 6, max: 18, step: 1 },

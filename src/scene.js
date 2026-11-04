@@ -162,6 +162,8 @@ export class Viewer {
       this.groups.set(pc.id, g);
     }
     for (const f of d.fixtures) this.buildFixture(f);
+    const lt = d.pieces.find(pc => pc.key === 'lidTop');
+    this.lidTop = lt ? { top: lt.solids[0].t[1], Z: lt.solids[0].rect[3] - lt.solids[0].rect[1] } : null;
     this.buildScenery(d);
     this.dims.build(d.dims.map(x => ({ ...x, off: [0, 0, 0], readonly: true, value: x.v })));
     this.applyVisibility();
@@ -246,6 +248,14 @@ export class Viewer {
       add(new THREE.BoxGeometry(4, 6, 15), m.get('rubber'), x + f.sgn * 2.5, y, z);
     } else if (f.kind === 'grommet') {
       add(new THREE.TorusGeometry(f.r, 2.5, 8, 28), m.get('rubber'), x + f.sgn * 1, y, z, [0, Math.PI / 2, 0]);
+    } else if (f.kind === 'port') {
+      add(new THREE.BoxGeometry(6, 12, f.k === 'power' ? 22 : 60), m.get('darkmetal'), x + f.sgn * 2, y, z);
+    } else if (f.kind === 'cable') {
+      const curve = new THREE.CatmullRomCurve3(f.pts.map(q => new THREE.Vector3(...q)));
+      const me = add(new THREE.TubeGeometry(curve, 80, f.r, 8), new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.55 }), 0, 0, 0);
+      me.userData.cable = true;
+    } else if (f.kind === 'ir') {
+      add(new THREE.CylinderGeometry(3, 3, 1, 12), new THREE.MeshStandardMaterial({ color: 0x3a0d0d, emissive: 0x550000, roughness: 0.3 }), x, y + 0.2, z);
     } else if (f.kind === 'latch') {
       add(new RoundedBoxGeometry(36, 44, 8, 2, 2), m.get('metal'), x, y, z + f.s * 4);
     }
@@ -290,6 +300,7 @@ export class Viewer {
         if (o.userData.fixture) return hi.fixtures.has(o.userData.fixture.step);
         if (o.userData.scenery) return false;
       }
+      if (o.userData.scenery && this.state.lidOn) return false;
       return true;
     };
     this.model.children.forEach(g => { g.visible = vis(g); });
@@ -311,7 +322,7 @@ export class Viewer {
     if (this.design) this.setDesign(this.design);
   }
   setExplode(v) { this.state.explode = v; }
-  setLid(on) { this.state.lidOn = on; }
+  setLid(on) { this.state.lidOn = on; this.applyVisibility(); }
   // capa de resultados (cálculos): oculta el modelo si se pide
   setOverlay(obj, { hideModel = false } = {}) {
     this.overlay.clear();
@@ -391,18 +402,28 @@ export class Viewer {
       g.position.set(0, cyS * (1 - Math.cos(th)) + lift, -cyS * Math.sin(th));
     }
     const e = this.anim.explode;
-    const lidLift = (1 - this.anim.lid) * 380;
+    // tapa: puesta (1) o de pie apoyada detrás de la caja (0)
+    const la = this.anim.lid, lt = this.lidTop;
+    const lidPos = new THREE.Vector3(), lidQ = new THREE.Quaternion();
+    if (lt) {
+      const offQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2 * 0.93);
+      const offP = new THREE.Vector3(0, lt.Z / 2 + 4, -(lt.top) - lt.Z / 2 - 140);
+      lidQ.copy(offQ).slerp(new THREE.Quaternion(), la);
+      lidPos.copy(offP).multiplyScalar(1 - la).add(new THREE.Vector3(0, Math.sin(Math.PI * la) * 260, 0));
+    }
     for (const g of this.model.children) {
       const v = g.userData.explode;
       const pc = g.userData.piece;
-      g.position.set(v[0] * e, v[1] * e + (pc.lid ? lidLift : 0), v[2] * e);
-      if (pc.lid) g.rotation.x = 0;
+      if (pc.lid) { g.quaternion.copy(lidQ); g.position.set(lidPos.x, lidPos.y + v[1] * e * la, lidPos.z); continue; }
+      g.position.set(v[0] * e, v[1] * e, v[2] * e);
     }
     for (const g of this.fx.children) {
       const f = g.userData.fixture;
       if (!f) continue;
-      const pcExp = f.kind === 'foot' ? [0, -200, 0] : g.userData.explode;
-      g.position.set(pcExp[0] * e, pcExp[1] * e + (f.lid ? lidLift : 0), pcExp[2] * e);
+      const fol = f.follow && this.groups && this.groups.get(f.follow);
+      const pcExp = f.kind === 'foot' ? [0, -200, 0] : fol ? fol.userData.explode : g.userData.explode;
+      if (f.lid) { g.quaternion.copy(lidQ); g.position.copy(lidPos); }
+      else g.position.set(pcExp[0] * e, pcExp[1] * e, pcExp[2] * e);
       g.traverse(o => { if (o.userData.spin) o.rotation.y += dt * 12; });
     }
     if (this.camTween) {

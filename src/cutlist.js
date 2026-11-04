@@ -17,7 +17,7 @@ export function cutRows(d) {
     const c = pieceCut(pc);
     const stock = c.stock || 'tablero';
     const k = [stock, pc.name.replace(/ (izq\.|der\.|izquierdo|derecho|fondo|frente|frontal|del fondo)$/i, ''), c.L, c.W, c.T].join('|');
-    if (!rows.has(k)) rows.set(k, { stock, stockLabel: STOCK[stock](d.params), name: pc.name, L: c.L, W: c.W, T: c.T, qty: 0, ids: [], notes: c.notes || notesFor(pc) });
+    if (!rows.has(k)) rows.set(k, { stock, stockLabel: stock === 'tablero' ? `Contrachapado ${String(c.T).replace('.', ',')} mm` : STOCK[stock](d.params), name: pc.name, L: c.L, W: c.W, T: c.T, qty: 0, ids: [], notes: c.notes || notesFor(pc) });
     const r = rows.get(k); r.qty++; r.ids.push(pc.id);
     if (r.qty > 1) r.name = r.name.replace(/ (izq\.|der\.|izquierdo|derecho|fondo|frente|frontal|del fondo)$/i, '');
   });

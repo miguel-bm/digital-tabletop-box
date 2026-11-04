@@ -1,4 +1,5 @@
 import { PLY, PROTECTORS } from './params.js';
+import { buildDesign } from './model.js';
 
 // Cálculos de ingeniería de la caja. Unidades: N, mm, MPa (N/mm²), s, W, K.
 // Placas: solución de Navier (placa rectangular apoyada en sus 4 bordes, carga en parche).
@@ -216,8 +217,9 @@ export function runCases(d) {
   {
     const now = thermal(d);
     const none = thermal(d, { fans: false, vents: false, baseVents: false });
-    const vOnly = thermal(d, { fans: false, vents: true, baseVents: true });
-    const withFans = thermal(d, { fans: true, vents: true, baseVents: true });
+    const dv = d.params.vents && d.params.baseVents ? d : buildDesign({ ...d.params, vents: true, baseVents: true });
+    const vOnly = thermal(dv, { fans: false, vents: true, baseVents: true });
+    const withFans = thermal(dv.params.fans ? dv : buildDesign({ ...dv.params, fans: true }), { fans: true, vents: true, baseVents: true });
     cases.push({
       id: 'thermal', title: 'Temperatura dentro de la caja', icon: 'thermo', thermal: { now, none, vOnly, withFans },
       load: `${now.P} W (consumo típico) · habitación a ${now.Troom} °C`, model: 'Red térmica de 2 nudos: pantalla e interior; tiro natural por rejillas o ventiladores',

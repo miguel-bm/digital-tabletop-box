@@ -274,7 +274,7 @@ export class Viewer {
       add(new RoundedBoxGeometry(95, 30, 65, 2, 5), new THREE.MeshStandardMaterial({ color: 0xb8243a, roughness: 0.5 }), x, y, z);
       add(new THREE.CylinderGeometry(14, 14, 2, 20), m.get('plastic'), x, y + 15.5, z);
     } else if (f.kind === 'strip') {
-      add(new RoundedBoxGeometry(120, 16, 45, 2, 4), new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.5 }), x, y, z);
+      add(new RoundedBoxGeometry(45, 16, 120, 2, 4), new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.5 }), x, y, z);
     } else if (f.kind === 'ir') {
       add(new THREE.CylinderGeometry(3, 3, 1, 12), new THREE.MeshStandardMaterial({ color: 0x3a0d0d, emissive: 0x550000, roughness: 0.3 }), x, y + 0.2, z);
     } else if (f.kind === 'latch') {
@@ -581,7 +581,12 @@ export class Viewer {
     const r = this.renderer;
     r.setPixelRatio(1); r.setSize(w, h, false);
     r.setClearColor(0xffffff, 1);
+    const xr = this.state.xray;
+    if (xr) this.mats.setXray(false);
+    r.localClippingEnabled = false;
     r.render(this.scene, cam);
+    r.localClippingEnabled = true;
+    if (xr) this.mats.setXray(true);
     const url = r.domElement.toDataURL('image/jpeg', 0.9);
     const labels = [];
     this.model.children.forEach(g => {

@@ -203,20 +203,23 @@ export function buildDesign(p) {
   const irPos = [tv.cx + p.irDx, (tv.z1 + scr.z1) / 2];
   const irCovered = p.irHole && !(irPos[1] < op1[3]);   // fuera de la ventana: el marco lo tapa
   const irF1 = irCovered ? [{ circle: [irPos[0], irPos[1], 5], tag: 'Ventana IR Ø10' }] : [];
-  const irF2 = irCovered && op2 && irPos[1] > op2[3] ? [{ circle: [irPos[0], irPos[1], 5], tag: 'Ventana IR Ø10' }] : [];
+  const irF2 = irCovered && op2 && irPos[1] - 5 > op2[3] + 1 ? [{ circle: [irPos[0], irPos[1], 5], tag: 'Ventana IR Ø10' }] : [];
+  // si la ventana IR cae en el borde del pozo, se abre una muesca rectangular en la capa superior
+  const irNotch = irCovered && op2 && irF2.length === 0 && irPos[1] + 5 > op2[3] ? [irPos[0] - 5, op2[3] - 1, irPos[0] + 5, irPos[1] + 5] : null;
   add({ id: 'F1', key: 'frame1', name: twoLayer ? 'Marco · capa inferior (labio)' : 'Marco', role: 'marco', mat: twoLayer ? 'black' : frameMat, step: 'marco',
     solids: [{ plane: 'XZ', rect: outerRect, t: [yF, yF + t], holes: [{ rect: op1 }, ...irF1] }], explode: [0, 200, 0] });
   // bolsillos para dados en los listones laterales (el labio de la capa 1 hace de fondo)
   let pocketHoles = [];
   if (p.pockets && !twoLayer) warn('info', 'Los bolsillos para dados solo existen con el marco doble (el labio de la capa inferior hace de fondo).');
   if (p.pockets && twoLayer) {
-    const pw = ring2 - 2 * 10, pl = Math.min(220, (op2[3] - op2[1]) - 80);
-    if (pw >= 28) {
-      const zc = (op2[1] + op2[3]) / 2;
-      pocketHoles = [{ rect: [xo0 + 10, zc - pl / 2, op2[0] - 10, zc + pl / 2], tag: 'Bolsillo dados ' + Math.round(pw) + '×' + Math.round(pl) }, { rect: [op2[2] + 10, zc - pl / 2, xo1 - 10, zc + pl / 2], tag: 'Bolsillo dados ' + Math.round(pw) + '×' + Math.round(pl) }];
-      pocketsInfo = { pw, pl, zc };
-      hw.push({ g: 'Acabado', name: 'Fieltro adhesivo para el fondo de los bolsillos', qty: 1, unit: 3 });
-    } else warn('warn', `Los bolsillos para dados necesitan un marco más ancho: el listón lateral del pozo mide ${r1(ring2)} mm (hacen falta ≥ 48). Sube el margen interior.`);
+    const pl = Math.min(220, (op2[3] - op2[1]) - 80), zc = (op2[1] + op2[3]) / 2;
+    const sides = [[xo0, op2[0]], [op2[2], xo1]];
+    sides.forEach(([a, b]) => {
+      const pw = b - a - 20;
+      if (pw >= 28) pocketHoles.push({ rect: [a + 10, zc - pl / 2, b - 10, zc + pl / 2], tag: 'Bolsillo dados ' + Math.round(pw) + '×' + Math.round(pl), side: a < 0 ? 0 : 1 });
+    });
+    if (pocketHoles.length) { pocketsInfo = { pl, zc }; hw.push({ g: 'Acabado', name: 'Fieltro adhesivo para el fondo de los bolsillos', qty: 1, unit: 3 }); }
+    if (pocketHoles.length < 2) warn('warn', `Los bolsillos para dados necesitan ≥ 48 mm de listón lateral en el pozo (ahora ${r1(op2[0] - xo0)} / ${r1(xo1 - op2[2])} mm). Sube el margen interior.`);
   }
   let cardHoles = [];
   if (p.cardSlots && twoLayer) {
@@ -226,18 +229,18 @@ export function buildDesign(p) {
   } else if (p.cardSlots) warn('info', 'Las ranuras para cartas solo existen con el marco doble.');
   if (twoLayer && !p.frame2Split) {
     add({ id: 'F2', key: 'frame2', name: 'Marco · capa superior (pozo)', role: 'marco', mat: frameMat, step: 'marco2',
-      solids: [{ plane: 'XZ', rect: outerRect, t: [yF + t, yF + 2 * t], holes: [{ rect: op2 }, ...irF2, ...pocketHoles, ...cardHoles] }], explode: [0, 280, 0] });
+      solids: [{ plane: 'XZ', rect: outerRect, t: [yF + t, yF + 2 * t], notches: [op2, ...(irNotch ? [irNotch] : [])], holes: [...irF2, ...pocketHoles, ...cardHoles] }], explode: [0, 280, 0] });
   } else if (twoLayer) {
     // 4 listones: los largos de punta a punta, los cortos entre ellos (juntas desfasadas respecto a la capa 1)
     const yy = [yF + t, yF + 2 * t];
     const strips = [
       ['F2', 'Marco · pozo, listón del fondo', [xo0, zo0, xo1, op2[1]], irF2.filter(h => h.circle[1] < op2[1])],
       ['F3', 'Marco · pozo, listón frontal', [xo0, op2[3], xo1, zo1], [...irF2.filter(h => h.circle[1] > op2[3]), ...cardHoles]],
-      ['F4', 'Marco · pozo, listón izquierdo', [xo0, op2[1], op2[0], op2[3]], pocketHoles.slice(0, 1)],
-      ['F5', 'Marco · pozo, listón derecho', [op2[2], op2[1], xo1, op2[3]], pocketHoles.slice(1, 2)],
+      ['F4', 'Marco · pozo, listón izquierdo', [xo0, op2[1], op2[0], op2[3]], pocketHoles.filter(h => h.side === 0)],
+      ['F5', 'Marco · pozo, listón derecho', [op2[2], op2[1], xo1, op2[3]], pocketHoles.filter(h => h.side === 1)],
     ];
     strips.forEach(([id, name, r, holes]) => add({ id, key: 'frame2' + id, name, role: 'marco', mat: frameMat, step: 'marco2',
-      solids: [{ plane: 'XZ', rect: r, t: yy, holes }], explode: [0, 280, 0] }));
+      solids: [{ plane: 'XZ', rect: r, t: yy, holes, notches: id === 'F3' && irNotch ? [irNotch] : [] }], explode: [0, 280, 0] }));
   }
   if (!p.irHole) warn('warn', 'El marco tapa el bisel inferior de la tele, donde está el receptor del mando: sin ventana IR solo podrás manejarla con la app SmartThings o por HDMI-CEC.');
   if (ring1 < 22) warn('warn', `El marco queda muy estrecho (${r1(ring1)} mm en su lado más fino): frágil al cortar y manipular. Aumenta el margen interior.`);
@@ -412,7 +415,7 @@ export function buildDesign(p) {
       solids: [{ plane: 'YZ', rect: [zo0, y0, zo1, yTop], t: [xo1, xo1 + ct], holes: wallHoles.right, notches: wallNotches.right }], explode: [280, 0, 0] });
     if (p.frameFinish === 'mismo') {
       add({ id: 'K5', key: 'skinTop', name: 'Revestimiento del marco', role: 'piel', mat: 'cover', step: 'piel', skin: true,
-        solids: [{ plane: 'XZ', rect: [xo0 - ct, zo0 - ct, xo1 + ct, zo1 + ct], t: [yTop, yTop + ct], holes: [{ rect: twoLayer ? op2 : op1 }] }], explode: [0, 360, 0] });
+        solids: [{ plane: 'XZ', rect: [xo0 - ct, zo0 - ct, xo1 + ct, zo1 + ct], t: [yTop, yTop + ct], holes: [{ rect: twoLayer ? op2 : op1 }, ...(twoLayer ? [...irF2, ...pocketHoles, ...cardHoles] : irF1)] }], explode: [0, 360, 0] });
     }
   }
   const outer = { X: X + 2 * ct, Z: Z + 2 * ct, H: H + (p.frameFinish === 'mismo' ? ct : 0) };
@@ -458,7 +461,7 @@ export function buildDesign(p) {
     if (hdmiOut) fixtures.push({ kind: 'hdmi', pos: [portRight ? xo1 + ct : xo0 - ct, cy, cz[1]], sgn: portRight ? 1 : -1, step: 'cables', follow: portRight ? 'W4' : 'W3' });
     hw.push({ g: 'Cables', name: 'Base IEC C14 de panel con fusible (y opcional interruptor)', qty: 1, unit: 4 });
     if (hdmiOut) hw.push({ g: 'Cables', name: 'Alargo HDMI macho–hembra de panel (30 cm)', qty: 1, unit: 7 });
-    hw.push({ g: 'Cables', name: 'Cable interior IEC C13 → figura 8 (C7), 50 cm', qty: 1, unit: 5 });
+    hw.push({ g: 'Cables', name: p.source === 'minipc' ? 'Cable interior IEC C13 → enchufe hembra (para la regleta), 30 cm' : 'Cable interior IEC C13 → figura 8 (C7), 50 cm', qty: 1, unit: 5 });
   } else if (p.cable === 'pasamuros') {
     czUse.forEach(z => fixtures.push({ kind: 'grommet', pos: [portRight ? xo1 + ct : xo0 - ct, cy, z], r: p.cableDia / 2, sgn: portRight ? 1 : -1, step: 'cables', follow: portRight ? 'W4' : 'W3' }));
     hw.push({ g: 'Cables', name: `Pasamuros de cepillo / goma Ø${p.cableDia}`, qty: czUse.length, unit: 1.5 });
@@ -479,11 +482,17 @@ export function buildDesign(p) {
           const px0 = wallIn - sgn * 75, pz0 = z - 20;
           fixtures.push({ kind: 'minipc', pos: [px0, yBaseTop + 16, pz0], step: 'cables' });
           fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts: [[x + sgn * 4, y, z], [x + sgn * 30, y - 4, z], [px0 - sgn * 40, yBaseTop + 18, pz0]], r: 2.6, color: '#2a2b30', step: 'cables' });
-          fixtures.push({ kind: 'strip', pos: [wallIn - sgn * 40, yBaseTop + 8, cz[0] + 40 * Math.sign(-cz[0] || 1)], step: 'cables' });
+          fixtures.push({ kind: 'strip', pos: [wallIn - sgn * (p.battenW + 26), yBaseTop + 8, cz[0] - 75], step: 'cables' });
         }
         return;
       }
       const zc = cz[k === 'power' ? 0 : 1];
+      if (k === 'power' && p.source === 'minipc') {
+        const sx = wallIn - sgn * (p.battenW + 26), sz = cz[0] - 75;
+        fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts: [[x + sgn * 4, y, z], [x + sgn * 40, y - 6, z], [sx - sgn * 10, yBaseTop + 12, sz + 40], [sx, yBaseTop + 10, sz + 62]], r: 3.2, color: '#1b1b1c', step: 'cables' });
+        fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts: [[sx, yBaseTop + 10, sz - 62], [wallIn - sgn * 40, cy - 6, (sz + zc) / 2], [wallIn - sgn * 12, cy, zc], [wallX + sgn * 30, cy, zc], [wallX + sgn * 110, Math.max(6, cy * 0.4), zc - 30], [wallX + sgn * 380, 6, zc - 120]], r: 3.2, color: '#1b1b1c', step: 'cables' });
+        return;
+      }
       const pts = [[x + sgn * 4, y, z], [x + sgn * 40, y - 6, z], [wallIn - sgn * 40, Math.max(yBaseTop + 10, cyIn - 6), (z + zc) / 2], [wallIn - sgn * 12, cy, zc], [wallX + sgn * 30, cy, zc], [wallX + sgn * 110, Math.max(6, cy * 0.4), zc + 30 * (i ? 1 : -1)], [wallX + sgn * 380, 6, zc + 120 * (i ? 1 : -1)]];
       fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts, r: k === 'power' ? 3.2 : 3.8, color: k === 'power' ? '#1b1b1c' : '#2a2b30', step: 'cables' });
     });
@@ -491,6 +500,7 @@ export function buildDesign(p) {
     if (p.source === 'stick') {
       hw.push({ g: 'Imagen', name: 'Chromecast con Google TV / Fire TV Stick (dentro, al HDMI de la tele)', qty: 1, unit: 40 });
       hw.push({ g: 'Imagen', name: 'Alargo HDMI corto en ángulo (15 cm) para el stick', qty: 1, unit: 5 });
+      hw.push({ g: 'Imagen', name: 'Regleta plana de 2 tomas (si el stick no va bien con el USB de la tele)', qty: 1, unit: 8 });
       warn('info', 'Con el stick dentro solo sale el cable de corriente. El Wi-Fi atraviesa el contrachapado sin problema; aliméntalo del USB de la tele si su fuente lo permite (los sticks 4K piden más corriente: usa su fuente con una regleta interior).');
     } else if (p.source === 'minipc') {
       hw.push({ g: 'Imagen', name: 'Raspberry Pi 5 (4 GB) + caja baja con ventilador + fuente 27 W', qty: 1, unit: 110 });

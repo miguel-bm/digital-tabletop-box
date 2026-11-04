@@ -14,8 +14,16 @@ const FEM_CASES = [
   { id: 'borde', label: 'Apoyarse', sub: '400 N en el canto frontal', icon: 'frame' },
 ];
 
-const st = { fem: 'trespatas', h: 35, scale: 20, field: 'u', card: null, busy: false, results: new Map(), job: 0 };
+const st = { fem: 'trespatas', h: 35, scale: 20, field: 'u', card: null, busy: false, results: new Map(), mainJob: 0, sensJob: 0 };
 let worker = null;
+// un solo worker, con un enrutador de mensajes por id (los estudios y los casos no se pisan)
+const handlers = new Map();
+let msgSeq = 0;
+function femRun(payload, onProgress) {
+  if (!worker) { worker = new Worker(new URL('./fem.worker.js', import.meta.url), { type: 'module' }); worker.onmessage = e => { const h = handlers.get(e.data.id); if (!h) return; if (e.data.progress != null) h.p && h.p(e.data.progress); else { handlers.delete(e.data.id); h.r(e.data.result); } }; }
+  const id = 'm' + (++msgSeq);
+  return new Promise(res => { handlers.set(id, { p: onProgress, r: res }); worker.postMessage({ ...payload, id }); });
+}
 
 // rampa de color (azul → cian → verde → amarillo → rojo)
 const RAMP = ['#30123b', '#4662d7', '#36aaf9', '#1ae4b6', '#72fe5e', '#c7ef34', '#fbb938', '#f56918', '#c92903', '#7a0403'];
@@ -96,7 +104,7 @@ function airflow(d) {
     if (pc.role === 'base' && h.tag.startsWith('Ventil') && i % 3 === 0) arrow([h.circle[0], -10, h.circle[1]], [0, 1, 0], 60, 0x36aaf9);
     if (pc.role === 'pared' && pc.key === 'back' && h.tag.startsWith('Ranura')) { const r = h.slot; arrow([(r[0] + r[2]) / 2, (r[1] + r[3]) / 2, -m.Z / 2 + 20], [0, 0.25, -1], 90, 0xf56918); }
     if (pc.role === 'pared' && pc.key === 'back' && h.tag.startsWith('Ventilador')) arrow([h.circle[0], h.circle[1], -m.Z / 2 + 20], [0, 0, -1], 130, 0xc92903);
-    if (pc.role === 'pared' && pc.key === 'front' && h.tag.startsWith('Rejilla') && i % 3 === 0) { const r = h.slot; arrow([(r[0] + r[2]) / 2, (r[1] + r[3]) / 2, m.Z / 2 + 60], [0, 0, -1], 50, 0x36aaf9); }
+    if (pc.role === 'pared' && pc.key === 'front' && h.tag.startsWith('Rejilla') && i % 3 === 0) { const r = h.slot; arrow([(r[0] + r[2]) / 2, (r[1] + r[3]) / 2, m.Z / 2 - 10], [0, 0.2, 1], 60, 0xf56918); }
   })));
   for (let i = -2; i <= 2; i++) for (let j = -1; j <= 1; j++) arrow([m.tv.cx + i * 180, m.yTop + 10, j * 150], [0, 1, 0], 110, 0xfbb938);
   return g;
@@ -184,28 +192,23 @@ function runAll(d, done) {
   if (st.busy && st.busyKey === key) return;
   st.busyKey = key;
   const spec = femSpec(d);
-  if (!worker) worker = new Worker(new URL('./fem.worker.js', import.meta.url), { type: 'module' });
   st.busy = true;
   const out = new Map();
   if (d.params.handle === 'ninguna' && st.fem === 'asa') st.fem = 'trespatas';
   const ids = [st.fem, ...FEM_CASES.map(c => c.id).filter(i => i !== st.fem && (i !== 'asa' || d.params.handle !== 'ninguna'))];
-  let i = 0;
-  const job = ++st.job;
-  const next = () => {
-    if (i >= ids.length) { st.busy = false; st.results.set(key, out); const el = document.querySelector('#fem-prog'); if (el) el.innerHTML = ''; done(); return; }
-    const id = ids[i];
-    worker.onmessage = e => {
-      if (e.data.id !== job + ':' + id) return;
-      if (e.data.progress != null) { const el = document.querySelector('#fem-prog'); if (el) el.innerHTML = `<div class="progress"><i style="width:${Math.round(((i + e.data.progress) / ids.length) * 100)}%"></i></div><p class="muted">Resolviendo «${FEM_CASES.find(c => c.id === id).label}»…</p>`; return; }
-      if (job !== st.job) return;
-      out.set(id, e.data.result);
-      i++;
-      if (i === 1) { st.results.set(key, out); done(); st.busy = true; }
-      next();
-    };
-    worker.postMessage({ spec, caseId: id, h: st.h, id: job + ':' + id });
-  };
-  next();
+  const job = ++st.mainJob;
+  (async () => {
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      const r = await femRun({ spec, caseId: id, h: st.h }, p => { if (job !== st.mainJob) return; const el = document.querySelector('#fem-prog'); if (el) el.innerHTML = `<div class="progress"><i style="width:${Math.round(((i + p) / ids.length) * 100)}%"></i></div><p class="muted">Resolviendo «${FEM_CASES.find(c => c.id === id).label}»…</p>`; });
+      if (job !== st.mainJob) return;
+      out.set(id, r);
+      if (i === 0) { st.results.set(key, out); done(); }
+    }
+    st.busy = false; st.results.set(key, out);
+    const el = document.querySelector('#fem-prog'); if (el) el.innerHTML = '';
+    done();
+  })();
 }
 
 function femSummary(d, r) {
@@ -272,27 +275,19 @@ function sensView(d) {
   if (r.pts.length < S.vars.length) return `<div class="progress"><i style="width:${(r.pts.length / S.vars.length) * 100}%"></i></div><p class="muted">Calculando «${S.vars[r.pts.length].label}»…</p>`;
   return S.line ? lineChart(r.pts, d.params.baseScrews) : barChart(r.pts, S);
 }
-function runSens(d) {
-  if (!worker) worker = new Worker(new URL('./fem.worker.js', import.meta.url), { type: 'module' });
+async function runSens(d) {
   const S = STUDIES[st.sensKind];
   st.sens = { key: sensKey(d), pts: [] };
-  const job = ++st.job;
-  st.busy = false;
-  let i = 0;
-  const paint = () => { const el = document.querySelector('#sens'); if (el) el.innerHTML = sensView(window.design || d); };
+  const job = ++st.sensJob;
+  const paint = () => { const el = document.querySelector('#sens'); if (el) el.innerHTML = sensView(window.design || d); const b = document.querySelector('#sens-run'); if (b) b.onclick = () => runSens(window.design || d); };
   paint();
-  const next = () => {
-    if (i >= S.vars.length || job !== st.job) return;
-    const v = S.vars[i];
+  for (const v of S.vars) {
     const dv = buildDesign({ ...d.params, ...v.over });
-    worker.onmessage = e => {
-      if (e.data.id !== job + ':s' + i || e.data.progress != null) return;
-      st.sens.pts.push([v.x, -e.data.result.probeU[1], e.data.result.vmax, v.label, dv.metrics.mass.total]);
-      i++; paint(); next();
-    };
-    worker.postMessage({ spec: femSpec(dv), caseId: 'trespatas', h: 45, id: job + ':s' + i });
-  };
-  next();
+    const r = await femRun({ spec: femSpec(dv), caseId: 'trespatas', h: 45 });
+    if (job !== st.sensJob) return;
+    st.sens.pts.push([v.x, -r.probeU[1], r.vmax, v.label, dv.metrics.mass.total]);
+    paint();
+  }
 }
 function barChart(pts, S) {
   const max = Math.max(...pts.map(p => p[1]));

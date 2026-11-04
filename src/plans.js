@@ -276,36 +276,47 @@ function sheetsDespiece(d, n0, total) {
 }
 
 // ───────── corte ─────────
-function sheetCorte(d, n, total) {
+function boardSVG(d, bd, ox, oy, s, k) {
+  let b = text(ox, oy - 2, `Tablero ${k + 1} · ${String(bd.T).replace('.', ',')} mm`, 3, 'font-weight="600"');
+  b += rect(ox, oy, ox + BOARD.W * s, oy + BOARD.H * s, `fill="#efe7da" stroke="${INK}" stroke-width=".4"`);
+  let used = 0;
+  bd.parts.forEach(pt => {
+    used += pt.w * pt.h;
+    const pc = d.pieces.find(q => q.id === pt.id);
+    const so = pc.solids.reduce((a, q) => ((q.rect[2] - q.rect[0]) * (q.rect[3] - q.rect[1]) >= (a.rect[2] - a.rect[0]) * (a.rect[3] - a.rect[1]) ? q : a), pc.solids[0]);
+    const [u0, v0, u1, v1] = so.rect;
+    const rot = Math.abs((u1 - u0) - pt.w) > 0.5;
+    const P = (u, v) => rot ? [ox + (pt.x + (v - v0)) * s, oy + (pt.y + (u1 - u)) * s] : [ox + (pt.x + (u - u0)) * s, oy + (pt.y + (v - v0)) * s];
+    const loop = l => 'M' + l.map(([u, v]) => P(u, v).join(',')).join('L') + 'Z';
+    rectMinusRects(so.rect, so.notches || []).forEach(reg => (b += `<path d="${loop(reg.outer)} ${reg.holes.map(loop).join(' ')}" fill-rule="evenodd" fill="#fff" stroke="${INK}" stroke-width=".35"/>`));
+    (so.holes || []).forEach(h => { const r = h.circle ? null : h.slot || h.rect; if (!r || (r[2] - r[0]) * (r[3] - r[1]) < 400) return; b += `<path d="${loop([[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]])}" fill="#efe7da" stroke="${INK}" stroke-width=".2" stroke-dasharray="1 .8"/>`; });
+    const fs = Math.min(2.6, pt.h * s * 0.42, (pt.w * s) / 11);
+    b += text(ox + (pt.x + pt.w / 2) * s, oy + (pt.y + Math.min(pt.h / 2, 40)) * s + fs * 0.35, `${pt.id} · ${f1(pt.w)}×${f1(pt.h)}`, fs, `text-anchor="middle" font-family="JetBrains Mono, monospace"`);
+  });
+  b += text(ox + BOARD.W * s - 1, oy - 2, `aprovechamiento ${Math.round((used / (BOARD.W * BOARD.H)) * 100)} %`, 2.6, `text-anchor="end" fill="${MUTED}"`);
+  return b;
+}
+
+function sheetsCorte(d, n, total) {
   const boards = packBoards(d);
   const p = d.params;
-  let b = text(16, 20, `OPTIMIZACIÓN DE CORTE · tableros ${BOARD.W} × ${BOARD.H} × ${p.t} · sierra ${BOARD.kerf} mm · margen ${BOARD.edge}`, 4, 'font-weight="700"');
   const s = Math.min((W - 52) / 2 / BOARD.W, 120 / BOARD.H);
-  boards.slice(0, 2).forEach((bd, k) => {
-    const ox = 20 + k * (BOARD.W * s + 12), oy = 30;
-    b += text(ox, oy - 2, `Tablero ${k + 1} · ${String(bd.T).replace('.', ',')} mm`, 3, 'font-weight="600"');
-    b += rect(ox, oy, ox + BOARD.W * s, oy + BOARD.H * s, `fill="#efe7da" stroke="${INK}" stroke-width=".4"`);
-    let used = 0;
-    bd.parts.forEach(pt => {
-      used += pt.w * pt.h;
-      b += rect(ox + pt.x * s, oy + pt.y * s, ox + (pt.x + pt.w) * s, oy + (pt.y + pt.h) * s, `fill="#fff" stroke="${INK}" stroke-width=".35"`);
-      if (pt.frame) {
-        const pc = d.pieces.find(q => q.id === pt.id);
-        const hole = pc && pc.solids[0].holes && pc.solids[0].holes[0] && pc.solids[0].holes[0].rect;
-        if (hole) { const r = pc.solids[0].rect; const rx = (hole[0] - r[0]) * s, ry = (hole[1] - r[1]) * s; b += rect(ox + pt.x * s + rx, oy + pt.y * s + ry, ox + pt.x * s + rx + (hole[2] - hole[0]) * s, oy + pt.y * s + ry + (hole[3] - hole[1]) * s, `fill="#efe7da" stroke="${INK}" stroke-width=".2" stroke-dasharray="1 .8"`); }
-      }
-      const fs = Math.min(2.6, pt.h * s * 0.42, (pt.w * s) / 11);
-      b += text(ox + (pt.x + pt.w / 2) * s, oy + (pt.y + pt.h / 2) * s + fs * 0.35, `${pt.id} · ${f1(pt.w)}×${f1(pt.h)}`, fs, `text-anchor="middle" font-family="JetBrains Mono, monospace"`);
-    });
-    b += text(ox + BOARD.W * s - 1, oy - 2, `aprovechamiento ${Math.round((used / (BOARD.W * BOARD.H)) * 100)} %`, 2.6, `text-anchor="end" fill="${MUTED}"`);
-  });
-  if (boards.length > 2) b += text(20, 270, `+ ${boards.length - 2} tableros más (reduce tamaños o márgenes)`, 3, `fill="${DIM}"`);
-  // listones: corte lineal en barras de 2400
+  const out = [];
+  for (let k = 0; k < Math.max(1, boards.length); k += 2) {
+    let b = text(16, 20, `OPTIMIZACIÓN DE CORTE · tableros ${BOARD.W} × ${BOARD.H} · sierra ${BOARD.kerf} mm · margen ${BOARD.edge}`, 4, 'font-weight="700"');
+    boards.slice(k, k + 2).forEach((bd, j) => (b += boardSVG(d, bd, 20 + j * (BOARD.W * s + 12), 30, s, k + j)));
+    if (k === 0) b += sticksSVG(d, 30 + BOARD.H * s + 16);
+    out.push(sheet('Corte', `${boards.length} tablero${boards.length > 1 ? 's' : ''} (${[...new Set(boards.map(x => x.T))].join(' y ')} mm) · guillotina por franjas`, n + out.length, total, b, d));
+  }
+  return out;
+}
+
+function sticksSVG(d, yy) {
+  let b = '';
   const sticks = [];
   d.pieces.forEach(pc => { if (!pc.solids) return; const c = pieceCut(pc); if (c.stock === 'taco') sticks.push({ id: pc.id, L: c.L, sec: `${f1(Math.min(c.W, c.T))}×${f1(Math.max(c.W, c.T))}` }); });
   const bySec = {};
   sticks.forEach(st => (bySec[st.sec] = bySec[st.sec] || []).push(st));
-  let yy = 30 + BOARD.H * s + 16;
   b += text(20, yy, 'LISTONES Y TACOS · barras de 2400 mm', 3.4, 'font-weight="700"');
   yy += 5;
   const bs = (W - 120) / 2400;
@@ -322,7 +333,7 @@ function sheetCorte(d, n, total) {
       yy += 6.5;
     });
   });
-  return sheet('Corte', `${boards.length} tablero${boards.length > 1 ? 's' : ''} · guillotina por franjas`, n, total, b, d);
+  return b;
 }
 
 // ───────── guía de taller ─────────
@@ -413,13 +424,14 @@ function sheetsMontaje(d, n0, total, shots) {
 export function buildSheets(d, set, snap) {
   const nDes = (() => { const rows = cutRows(d).filter(r => r.stock !== 'espuma'); const big = rows.filter(r => r.L > 500 && r.W > 60).length; return Math.ceil(big / 4) + Math.ceil((rows.length - big) / 9); })();
   const nMont = Math.ceil(planAssembly(d).length / 6);
-  const total = 1 + nDes + 1 + 1 + 1 + nMont;
-  const pg = { conj: 1, des: 2, corte: 2 + nDes, taller: 3 + nDes, expl: 4 + nDes, mont: 5 + nDes };
+  const nCor = Math.max(1, Math.ceil(packBoards(d).length / 2));
+  const total = 1 + nDes + nCor + 1 + 1 + nMont;
+  const pg = { conj: 1, des: 2, corte: 2 + nDes, taller: 2 + nDes + nCor, expl: 3 + nDes + nCor, mont: 4 + nDes + nCor };
   const s = snap || {};
   if (set === 'conjunto') return [sheetConjunto(d, pg.conj, total), sheetExplosion(d, pg.expl, total, s.explosion || (Array.isArray(snap) ? null : snap))];
   if (set === 'despiece') return sheetsDespiece(d, pg.des, total);
-  if (set === 'corte') return [sheetCorte(d, pg.corte, total)];
+  if (set === 'corte') return sheetsCorte(d, pg.corte, total);
   if (set === 'taller') return [sheetTaller(d, pg.taller, total)];
   if (set === 'montaje') return sheetsMontaje(d, pg.mont, total, Array.isArray(snap) ? snap : s.montaje);
-  return [sheetConjunto(d, pg.conj, total), ...sheetsDespiece(d, pg.des, total), sheetCorte(d, pg.corte, total), sheetTaller(d, pg.taller, total), sheetExplosion(d, pg.expl, total, s.explosion), ...sheetsMontaje(d, pg.mont, total, s.montaje)];
+  return [sheetConjunto(d, pg.conj, total), ...sheetsDespiece(d, pg.des, total), ...sheetsCorte(d, pg.corte, total), sheetTaller(d, pg.taller, total), sheetExplosion(d, pg.expl, total, s.explosion), ...sheetsMontaje(d, pg.mont, total, s.montaje)];
 }

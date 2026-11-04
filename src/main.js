@@ -54,8 +54,8 @@ try {
   const hm = location.hash.match(/d=([\w-]+)/);
   if (hm) {
     const json = decodeURIComponent(escape(atob(hm[1].replace(/-/g, '+').replace(/_/g, '/'))));
+    fromLink = { ...params };   // diseño que había antes, para poder deshacer
     params = sanitize(JSON.parse(json));
-    fromLink = true;
     history.replaceState(null, '', location.pathname + location.search);
   }
 } catch { /* enlace roto */ }
@@ -551,7 +551,7 @@ function stopPlay() { clearInterval(playT); playT = null; $('#guide-play').textC
 $('#guide-play').addEventListener('click', () => {
   if (playT) return stopPlay();
   $('#guide-play').textContent = '❚❚';
-  playT = setInterval(() => { if (!guide.on || guide.i >= guide.steps.length - 1) return stopPlay(); showStep(guide.i + 1); }, 4500);
+  playT = setInterval(() => { if (!guide.on || guide.i >= guide.steps.length - 1) return stopPlay(); showStep(guide.i + 1, false); }, 4500);
 });
 
 // ───────── planos (carga diferida) ─────────
@@ -716,5 +716,5 @@ renderSide();
 renderReadouts();
 updateInsets();
 if (urlStep && Number.isFinite(Number(urlStep))) openGuide(Math.max(0, Number(urlStep) - 1));
-if (fromLink) { save(); toast('Diseño cargado desde el enlace'); }
+if (fromLink) { hist.past.push(fromLink); save(); toast('Diseño cargado desde el enlace · ⌘Z vuelve al tuyo'); }
 try { if (!localStorage.getItem('tabletop.seenHelp')) { helpEl.hidden = false; localStorage.setItem('tabletop.seenHelp', '1'); } } catch { /* nada */ }

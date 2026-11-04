@@ -421,6 +421,53 @@ function sheetsMontaje(d, n0, total, shots) {
   return out;
 }
 
+// ───────── plantillas 1:1 por trozos de A3 ─────────
+function sheetsPlantillas(d) {
+  const pick = d.pieces.filter(pc => ['R1', 'W1', 'W2', 'W3', 'W4', 'A1'].includes(pc.id) || (pc.id === 'H1'));
+  const out = [];
+  const PW = W - 40, PH = H - 70;    // zona útil por hoja (mm reales a 1:1)
+  pick.forEach(pc => {
+    const so = pc.solids.reduce((a, s) => ((s.rect[2] - s.rect[0]) * (s.rect[3] - s.rect[1]) >= (a.rect[2] - a.rect[0]) * (a.rect[3] - a.rect[1]) ? s : a), pc.solids[0]);
+    const [u0, v0, u1, v1] = so.rect;
+    const holes = [...(so.holes || [])];
+    (pc.drill || []).forEach(([u, v, r]) => holes.push({ circle: [u, (v0 + v1) / 2, r] }));
+    const L = u1 - u0, Hh = v1 - v0;
+    const nx = Math.ceil(L / PW), ny = Math.ceil(Hh / PH);
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const tu0 = u0 + i * PW, tv0 = v1 - (j + 1) * PH;     // de izquierda a derecha y de arriba abajo
+      const ox = 20, oy = 34;
+      const X = u => ox + (u - tu0), Y = v => oy + PH - (v - tv0);
+      let b = `<clipPath id="cp${pc.id}${i}${j}"><rect x="${ox}" y="${oy}" width="${PW}" height="${PH}"/></clipPath>`;
+      b += text(16, 18, `PLANTILLA 1:1 · ${pc.id} ${pc.name}`, 4.4, 'font-weight="700"');
+      b += text(16, 24, `Trozo ${j * nx + i + 1} de ${nx * ny} (columna ${i + 1}/${nx}${ny > 1 ? `, fila ${j + 1}/${ny}` : ''}). Imprime al 100 % (sin «ajustar a página») y comprueba la regla de 100 mm. Empalma por las marcas ✚.`, 2.6, `fill="${MUTED}"`);
+      b += `<g clip-path="url(#cp${pc.id}${i}${j})">`;
+      rectMinusRects(so.rect, so.notches || []).forEach(reg => {
+        const lp = l => 'M' + l.map(([u, v]) => `${X(u)},${Y(v)}`).join('L') + 'Z';
+        b += `<path d="${lp(reg.outer)} ${reg.holes.map(lp).join(' ')}" fill-rule="evenodd" fill="#faf7f0" stroke="${INK}" stroke-width=".35"/>`;
+      });
+      holes.forEach(h => {
+        if (h.circle) {
+          const [u, v, r] = h.circle;
+          b += `<circle cx="${X(u)}" cy="${Y(v)}" r="${r}" fill="#fff" stroke="${INK}" stroke-width=".3"/><path d="M${X(u) - r - 3} ${Y(v)}h${2 * r + 6}M${X(u)} ${Y(v) - r - 3}v${2 * r + 6}" stroke="${DIM}" stroke-width=".2"/>`;
+          b += text(X(u) + r + 1.5, Y(v) - r - 1, `Ø${f1(2 * r)}`, 2.2, `fill="${DIM}"`);
+        } else {
+          const r = h.slot || h.rect, x0 = X(r[0]), x1 = X(r[2]), y0 = Y(r[3]), y1 = Y(r[1]);
+          b += `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="${h.slot ? Math.min(x1 - x0, y1 - y0) / 2 : 0}" fill="#fff" stroke="${INK}" stroke-width=".3"/>`;
+        }
+      });
+      // cotas acumuladas de los huecos desde el borde izquierdo
+      const xs = [...new Set(holes.map(h => (h.circle ? h.circle[0] : ((h.slot || h.rect)[0] + (h.slot || h.rect)[2]) / 2)).map(v => Math.round(v * 10) / 10))].sort((a, c) => a - c);
+      xs.forEach(u => { if (u < tu0 || u > tu0 + PW) return; b += `<line x1="${X(u)}" y1="${Y(v0) + 2}" x2="${X(u)}" y2="${Y(v0) + 9}" stroke="${DIM}" stroke-width=".2"/>` + text(X(u) + 0.6, Y(v0) + 8, f1(u - u0), 2.2, `fill="${DIM}" transform="rotate(-90 ${X(u) + 0.6} ${Y(v0) + 8})"`); });
+      b += '</g>';
+      // marcas de empalme y regla
+      [[ox, oy], [ox + PW, oy], [ox, oy + PH], [ox + PW, oy + PH]].forEach(([x, y]) => (b += `<path d="M${x - 4} ${y}h8M${x} ${y - 4}v8" stroke="${INK}" stroke-width=".3"/>`));
+      b += `<path d="M${ox} ${H - 26}h100" stroke="${INK}" stroke-width=".5"/>` + [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(k => `<path d="M${ox + k} ${H - 26}v${k % 50 ? -2 : -4}" stroke="${INK}" stroke-width=".3"/>`).join('') + text(ox + 102, H - 25, '100 mm', 2.6);
+      out.push(sheet('Plantilla 1:1', `${pc.id} · trozo ${j * nx + i + 1}/${nx * ny}`, out.length + 1, 0, b, d));
+    }
+  });
+  return out.map((s, k) => s.replace(/Hoja (\d+)\/0/, `Hoja ${k + 1}/${out.length}`));
+}
+
 export function buildSheets(d, set, snap) {
   const nDes = (() => { const rows = cutRows(d).filter(r => r.stock !== 'espuma'); const big = rows.filter(r => r.L > 500 && r.W > 60).length; return Math.ceil(big / 4) + Math.ceil((rows.length - big) / 9); })();
   const nMont = Math.ceil(planAssembly(d).length / 6);
@@ -433,5 +480,6 @@ export function buildSheets(d, set, snap) {
   if (set === 'corte') return sheetsCorte(d, pg.corte, total);
   if (set === 'taller') return [sheetTaller(d, pg.taller, total)];
   if (set === 'montaje') return sheetsMontaje(d, pg.mont, total, Array.isArray(snap) ? snap : s.montaje);
+  if (set === 'plantillas') return sheetsPlantillas(d);
   return [sheetConjunto(d, pg.conj, total), ...sheetsDespiece(d, pg.des, total), ...sheetsCorte(d, pg.corte, total), sheetTaller(d, pg.taller, total), sheetExplosion(d, pg.expl, total, s.explosion), ...sheetsMontaje(d, pg.mont, total, s.montaje)];
 }

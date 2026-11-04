@@ -379,6 +379,37 @@ function sheetExplosion(d, n, total, snap) {
   return sheet('Explosión', 'Vista de conjunto con piezas separadas', n, total, b, d);
 }
 
+// ───────── montaje ilustrado: 6 pasos por hoja ─────────
+function sheetsMontaje(d, n0, total, shots) {
+  const steps = planAssembly(d);
+  const out = [];
+  const wrap = (str, max) => { const words = String(str).split(' '); const lines = []; let cur = ''; words.forEach(w => { if ((cur + ' ' + w).trim().length > max) { lines.push(cur.trim()); cur = w; } else cur += ' ' + w; }); if (cur.trim()) lines.push(cur.trim()); return lines; };
+  for (let k = 0; k < steps.length; k += 6) {
+    let b = text(16, 20, 'MONTAJE ILUSTRADO', 5, 'font-weight="700"');
+    b += text(16, 25, 'En naranja, las piezas de cada paso. «Boca abajo»: la caja apoyada sobre el marco, encima de una manta.', 2.6, `fill="${MUTED}"`);
+    const cw = (W - 32 - 8) / 3, ch = (H - 30 - 34 - 6) / 2;
+    steps.slice(k, k + 6).forEach((st, j) => {
+      const i = k + j, x = 16 + (j % 3) * (cw + 4), y = 30 + Math.floor(j / 3) * (ch + 6);
+      b += rect(x, y, x + cw, y + ch, `stroke="${INK}" stroke-width=".3"`);
+      b += `<rect x="${x + 2}" y="${y + 2}" width="7" height="5" rx="1" fill="${ACC}"/>` + text(x + 5.5, y + 5.8, String(i + 1), 3.2, 'text-anchor="middle" font-weight="700"');
+      b += text(x + 11, y + 6, st.title + (st.flip ? ' · boca abajo' : ''), 3.2, 'font-weight="700"');
+      const shot = shots && shots[i];
+      const ih = ch * 0.56, iw = cw - 4;
+      if (shot) {
+        b += `<image href="${shot.url}" x="${x + 2}" y="${y + 9}" width="${iw}" height="${ih}" preserveAspectRatio="xMidYMid meet"/>`;
+        const s2 = Math.min(iw / shot.w, ih / shot.h), ox = x + 2 + (iw - shot.w * s2) / 2, oy = y + 9 + (ih - shot.h * s2) / 2;
+        const seen = new Set();
+        shot.labels.forEach(l => { if (seen.has(l.id) || seen.size > 10) return; seen.add(l.id); const lx = ox + l.x * s2, ly = oy + l.y * s2; if (lx < x || lx > x + cw || ly < y + 9 || ly > y + 9 + ih) return; b += `<rect x="${lx - 3.4}" y="${ly - 1.8}" width="6.8" height="3.4" rx=".8" fill="${ACC}"/>` + text(lx, ly + 0.9, l.id, 2.1, 'text-anchor="middle" font-weight="700"'); });
+      }
+      const lines = wrap(st.text, 78);
+      const maxL = Math.floor((ch - ih - 13) / 2.75);
+      lines.slice(0, maxL).forEach((l, q) => (b += text(x + 2.5, y + 9 + ih + 4.5 + q * 2.75, q === maxL - 1 && lines.length > maxL ? l + '…' : l, 2.15)));
+    });
+    out.push(sheet('Montaje', `Pasos ${k + 1}–${Math.min(steps.length, k + 6)} de ${steps.length}`, n0 + out.length, total, b, d));
+  }
+  return out;
+}
+
 export function buildSheets(d, set, snap) {
   const nDes = (() => { const rows = cutRows(d).filter(r => r.stock !== 'espuma'); const big = rows.filter(r => r.L > 500 && r.W > 60).length; return Math.ceil(big / 4) + Math.ceil((rows.length - big) / 9); })();
   const total = 1 + nDes + 1 + 1 + 1;
@@ -386,5 +417,6 @@ export function buildSheets(d, set, snap) {
   if (set === 'despiece') return sheetsDespiece(d, 2, total);
   if (set === 'corte') return [sheetCorte(d, 2 + nDes, total)];
   if (set === 'taller') return [sheetTaller(d, 3 + nDes, total)];
+  if (set === 'montaje') return sheetsMontaje(d, 1, Math.ceil(planAssembly(d).length / 6), snap);
   return [sheetConjunto(d, 1, total), ...sheetsDespiece(d, 2, total), sheetCorte(d, 2 + nDes, total), sheetTaller(d, 3 + nDes, total)];
 }

@@ -517,17 +517,18 @@ export class Viewer {
   }
 
   // Imagen fija (para los planos): vista isométrica con piezas separadas y la posición en pantalla de cada pieza
-  snapshot({ w = 2000, h = 1200, explode = 1, hide = ['escena', 'tapa', 'piel'] } = {}) {
-    const saved = { anim: { ...this.anim }, hidden: this.state.hidden, hi: this.highlight, ov: this.overlay.visible, dims: this.dims.group.visible, flip: this.flipTarget };
-    Object.assign(this.anim, { explode, flip: 0, lid: 0 });
-    this.highlight = null; this.state.hidden = new Set(hide);
+  snapshot({ w = 2000, h = 1200, explode = 1, hide = ['escena', 'tapa', 'piel'], highlight = null, flip = 0, lid = 0 } = {}) {
+    const saved = { anim: { ...this.anim }, hidden: this.state.hidden, hi: this.highlight, ov: this.overlay.visible, dims: this.dims.group.visible, flip: this.flipTarget, lidOn: this.state.lidOn };
+    Object.assign(this.anim, { explode, flip, lid });
+    this.highlight = highlight; this.state.hidden = new Set(hide); this.state.lidOn = !!lid;
     this.applyVisibility();
     this.overlay.visible = false; this.dims.group.visible = false; this.tableGroup.visible = false;
     this.model.visible = true; this.fx.visible = true;
     this.pose(0);
+    this.scene.updateMatrixWorld(true);
     const M = this.design.metrics, span = M.outer.X * S;
     const cam = new THREE.PerspectiveCamera(24, w / h, 0.02, 60);
-    cam.position.set(-0.9 * span, 1.55 * span, 1.75 * span);
+    cam.position.set(-0.9 * span, 1.1 * span, 1.75 * span);
     const tgt = new THREE.Vector3(0, 0.12, 0);
     cam.lookAt(tgt);
     // encuadre: aleja hasta que quepan todas las piezas
@@ -545,12 +546,12 @@ export class Viewer {
     const url = r.domElement.toDataURL('image/jpeg', 0.9);
     const labels = [];
     this.model.children.forEach(g => {
-      if (!g.visible) return;
+      if (!g.visible || (highlight && !highlight.now.has(g.userData.piece.id))) return;
       const c = new THREE.Box3().setFromObject(g).getCenter(new THREE.Vector3()).project(cam);
       labels.push({ id: g.userData.piece.id, name: g.userData.piece.name, x: (c.x + 1) / 2 * w, y: (1 - c.y) / 2 * h });
     });
     // restaurar
-    this.anim = saved.anim; this.state.hidden = saved.hidden; this.highlight = saved.hi; this.flipTarget = saved.flip;
+    this.anim = saved.anim; this.state.hidden = saved.hidden; this.highlight = saved.hi; this.flipTarget = saved.flip; this.state.lidOn = saved.lidOn;
     this.overlay.visible = saved.ov; this.dims.group.visible = saved.dims;
     if (this.overlayHides) { this.model.visible = false; this.fx.visible = false; }
     r.setClearColor(0x000000, 0);

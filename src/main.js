@@ -502,6 +502,12 @@ async function renderPlans() {
   const { buildSheets } = await import('./plans.js');
   let snap = null;
   if (plans.set === 'conjunto') { try { snap = viewer.snapshot(); } catch (e) { console.warn(e); } }
+  if (plans.set === 'montaje') {
+    try {
+      const steps = planAssembly(design);
+      snap = steps.map(st => viewer.snapshot({ w: 1200, h: 760, explode: st.explode, flip: st.flip ? 1 : 0, lid: st.lid ? 1 : 0, hide: st.lid ? ['escena'] : ['escena', 'tapa'], highlight: { now: new Set(st.now), done: new Set(st.done || []), fixtures: new Set(steps.slice(0, steps.indexOf(st) + 1).map(s => s.key).concat(st.fixtures || [])) } }));
+    } catch (e) { console.warn(e); }
+  }
   const sheets = buildSheets(design, plans.set, snap);
   $('#sheets').innerHTML = sheets.join('');
   $('#plans-info').textContent = `${sheets.length} hoja${sheets.length > 1 ? 's' : ''} A3 · cotas en mm`;

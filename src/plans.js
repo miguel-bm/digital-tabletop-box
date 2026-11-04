@@ -21,7 +21,7 @@ function defs() {
 }
 function sheet(title, sub, n, total, body, d) {
   const p = d.params, m = d.metrics;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="IBM Plex Sans Condensed, Arial Narrow, sans-serif" fill="none" stroke-linejoin="round">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 ${W} ${H}" font-family="IBM Plex Sans Condensed, Arial Narrow, sans-serif" fill="none" stroke-linejoin="round">
   ${defs()}
   <rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>
   <rect x="8" y="8" width="${W - 16}" height="${H - 16}" stroke="${INK}" stroke-width=".5"/>
@@ -425,7 +425,7 @@ function sheetsMontaje(d, n0, total, shots) {
 function sheetRevestimiento(d, n, total) {
   const p = d.params, m = d.metrics;
   let b = text(16, 20, 'PATRÓN DEL REVESTIMIENTO', 5, 'font-weight="700"');
-  if (p.cover === 'ninguno') return sheet('Forro', 'Sin revestimiento', n, total, b + text(16, 34, 'El diseño no lleva revestimiento: madera vista (aceite o barniz).', 3.4), d);
+  if (p.cover === 'ninguno' || p.cover === 'pintura') return sheet('Forro', 'Sin revestimiento', n, total, b + text(16, 34, p.cover === 'pintura' ? 'Acabado pintado: imprimación, lijado fino (240) y dos manos de esmalte satinado; sin patrón de corte.' : 'El diseño no lleva revestimiento: madera vista (aceite o barniz).', 3.4), d);
   const ov = 20;                                       // solape arriba y abajo
   const H0 = m.yTop - m.y0;                            // alto de las paredes + marco
   const segs = [m.X / 2, m.Z, m.X, m.Z, m.X / 2];      // empieza en el centro de la pared del fondo
@@ -463,7 +463,7 @@ function sheetRevestimiento(d, n, total) {
     b += text(16, hy, `MARCO FORRADO: una pieza de ${f1(fw)} × ${f1(fz)} mm; corta la ventana dejando 15 mm para doblar hacia dentro y pinta de negro el canto interior antes.`, 2.8); hy += 5;
   }
   const area = (Ltot * (H0 + 2 * ov) + (p.frameFinish === 'mismo' ? (m.X + 40) * (m.Z + 40) : 0)) * 1e-6;
-  b += text(16, Math.min(H - 36, hy + 6), `Material: ${f1(area)} m² netos. Los rollos son de 1,37–1,40 m de ancho: sin juntas necesitas ${f1(Math.ceil((Ltot + 100) / 100) / 10)} m lineales; cortando la tira en 3 trozos con las juntas en esquinas, basta con ${f1(Math.ceil(((H0 + 2 * ov) * 3 + (p.frameFinish === 'mismo' ? m.Z + 40 : 0) + 100) / 100) / 10)} m.`, 2.8, 'font-weight="600"');
+  b += text(16, Math.min(H - 36, hy + 6), `Material: ${f1(area)} m² netos. Los rollos son de 1,37–1,40 m de ancho: sin juntas necesitas ${f1(Math.ceil((Ltot + 100) / 100) / 10)} m lineales; ${m.X + 40 <= 1370 ? `en 4 trozos (uno por pared, juntas en las esquinas) cortados a lo ancho del rollo basta con ${f1(Math.ceil(((H0 + 2 * ov) * 4 + (p.frameFinish === 'mismo' ? m.Z + 40 : 0) + 100) / 100) / 10)} m` : 'las paredes largas no caben a lo ancho del rollo: compra la tira entera'}.`, 2.8, 'font-weight="600"');
   return sheet('Forro', 'Revestimiento: tira continua con pliegues y cortes de esquina', n, total, b, d);
 }
 
@@ -475,8 +475,17 @@ function sheetsPlantillas(d) {
   pick.forEach(pc => {
     const so = pc.solids.reduce((a, s) => ((s.rect[2] - s.rect[0]) * (s.rect[3] - s.rect[1]) >= (a.rect[2] - a.rect[0]) * (a.rect[3] - a.rect[1]) ? s : a), pc.solids[0]);
     const [u0, v0, u1, v1] = so.rect;
-    const holes = [...(so.holes || [])];
-    (pc.drill || []).forEach(([u, v, r]) => holes.push({ circle: [u, (v0 + v1) / 2, r] }));
+    // siempre la cara exterior: en el fondo (W1) y el lateral derecho (W4) se invierte u
+    const flip = ['W1', 'W4'].includes(pc.id);
+    const F = u => (flip ? u0 + u1 - u : u);
+    const fr = r => (flip ? [F(r[2]), r[1], F(r[0]), r[3]] : r);
+    const fl = l => l.map(([u, v]) => [F(u), v]);
+    const holes = (so.holes || []).map(h => (h.circle ? { ...h, circle: [F(h.circle[0]), h.circle[1], h.circle[2]] } : h.slot ? { ...h, slot: fr(h.slot) } : { ...h, rect: fr(h.rect) }));
+    (pc.drill || []).forEach(([u, v, r]) => holes.push({ circle: [F(u), (v0 + v1) / 2, r] }));
+    const same = d.pieces.filter(q => q !== pc && q.name.replace(/ (izq\.|der\.|izquierdo|derecho|fondo|frente|frontal|del fondo)$/i, '') === pc.name.replace(/ (izq\.|der\.|izquierdo|derecho|fondo|frente|frontal|del fondo)$/i, '') && q.solids && q.solids[0].plane === so.plane && Math.abs((q.solids[0].rect[2] - q.solids[0].rect[0]) - (u1 - u0)) < 0.5).map(q => q.id);
+    const isWall = pc.role === 'pared';
+    const ends = so.plane === 'XY' ? ['lado izquierdo', 'lado derecho'] : ['lado del asa (fondo)', 'lado del jugador'];
+    const [endL, endR] = flip ? [ends[1], ends[0]] : ends;
     const L = u1 - u0, Hh = v1 - v0;
     const nx = Math.ceil(L / PW), ny = Math.ceil(Hh / PH);
     for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
@@ -484,10 +493,11 @@ function sheetsPlantillas(d) {
       const ox = 20, oy = 34;
       const X = u => ox + (u - tu0), Y = v => oy + PH - (v - tv0);
       let b = `<clipPath id="cp${pc.id}${i}${j}"><rect x="${ox}" y="${oy}" width="${PW}" height="${PH}"/></clipPath>`;
-      b += text(16, 18, `PLANTILLA 1:1 · ${pc.id} ${pc.name}`, 4.4, 'font-weight="700"');
+      b += text(16, 18, `PLANTILLA 1:1 · ${pc.id} ${pc.name}${same.length ? ` (vale también para ${same.join(', ')})` : ''}${isWall ? ' · CARA EXTERIOR' : ''}`, 4.4, 'font-weight="700"');
+      if (isWall) { if (i === 0) b += text(ox + 2, oy - 2, '← ' + endL, 2.6, `fill="${DIM}"`); if (i === nx - 1) b += text(ox + Math.min(PW, u1 - tu0) - 2, oy - 2, endR + ' →', 2.6, `fill="${DIM}" text-anchor="end"`); }
       b += text(16, 24, `Trozo ${j * nx + i + 1} de ${nx * ny} (columna ${i + 1}/${nx}${ny > 1 ? `, fila ${j + 1}/${ny}` : ''}). Imprime al 100 % (sin «ajustar a página») y comprueba la regla de 100 mm. Empalma por las marcas ✚.`, 2.6, `fill="${MUTED}"`);
       b += `<g clip-path="url(#cp${pc.id}${i}${j})">`;
-      rectMinusRects(so.rect, so.notches || []).forEach(reg => {
+      rectMinusRects(so.rect, (so.notches || []).map(fr)).forEach(reg => {
         const lp = l => 'M' + l.map(([u, v]) => `${X(u)},${Y(v)}`).join('L') + 'Z';
         b += `<path d="${lp(reg.outer)} ${reg.holes.map(lp).join(' ')}" fill-rule="evenodd" fill="#faf7f0" stroke="${INK}" stroke-width=".35"/>`;
       });

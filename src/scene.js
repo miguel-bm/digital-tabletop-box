@@ -311,7 +311,7 @@ export class Viewer {
     (m.cardSlots || []).forEach((r, i) => {
       for (let k = 0; k < 3; k++) {
         const card = new THREE.Mesh(new THREE.BoxGeometry(63, 88, 0.8), new THREE.MeshStandardMaterial({ color: [0xf3eee2, 0x7a2e2e, 0x2e4f7a][(i + k) % 3], roughness: 0.6 }));
-        card.position.set((r[0] + r[2]) / 2 - 75 + k * 75, m.yF + d.params.t + 44 - 8, (r[1] + r[3]) / 2);
+        card.position.set((r[0] + r[2]) / 2 - 75 + k * 75, m.yF + d.params.t + 44, (r[1] + r[3]) / 2);
         card.rotation.x = -0.12; card.castShadow = true; g.add(card);
       }
     });
@@ -404,9 +404,9 @@ export class Viewer {
     let done = false;
     const finish = ok => {
       if (done) return; done = true;
-      const v = Number(String(inp.value).replace(',', '.'));
+      const raw = String(inp.value).trim(), v = Number(raw.replace(',', '.'));
       inp.remove();
-      if (ok && isFinite(v) && this.onEditDim) this.onEditDim(it.dm, v);
+      if (ok && raw !== '' && isFinite(v) && Math.abs(v - it.value) > 0.05 && this.onEditDim) this.onEditDim(it.dm, v);
     };
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); e.stopPropagation(); });
     inp.addEventListener('blur', () => finish(true));

@@ -345,7 +345,7 @@ export function buildDesign(p) {
     const d = Math.min(bw, g - 1);
     const hb = handleHalf;
     add({ id: 'A1', key: 'handleBlock', name: 'Contraplaca del asa', role: 'taco', mat: 'batten', step: 'caja',
-      solids: [{ plane: 'XY', rect: [-hb, battenTop, hb, yF], t: [zi0, zi0 + d] }],
+      solids: [{ plane: 'XY', rect: [-hb, battenTop, hb, yF], t: [zi0, zi0 + d], holes: [-boltX, boltX].map(x => ({ circle: [x, midY(battenTop, yF), 3.25], tag: 'Taladro Ø6,5 asa' })) }],
       cut: { L: r1(2 * hb), W: r1(yF - battenTop), T: r1(d), stock: 'taco', notes: '2 taladros Ø6,5 pasantes + tuercas de garra M6' }, explode: [0, 30, -90] });
   }
 
@@ -415,7 +415,7 @@ export function buildDesign(p) {
       solids: [{ plane: 'YZ', rect: [zo0, y0, zo1, yTop], t: [xo1, xo1 + ct], holes: wallHoles.right, notches: wallNotches.right }], explode: [280, 0, 0] });
     if (p.frameFinish === 'mismo') {
       add({ id: 'K5', key: 'skinTop', name: 'Revestimiento del marco', role: 'piel', mat: 'cover', step: 'piel', skin: true,
-        solids: [{ plane: 'XZ', rect: [xo0 - ct, zo0 - ct, xo1 + ct, zo1 + ct], t: [yTop, yTop + ct], holes: [{ rect: twoLayer ? op2 : op1 }, ...(twoLayer ? [...irF2, ...pocketHoles, ...cardHoles] : irF1)] }], explode: [0, 360, 0] });
+        solids: [{ plane: 'XZ', rect: [xo0 - ct, zo0 - ct, xo1 + ct, zo1 + ct], t: [yTop, yTop + ct], notches: [twoLayer ? op2 : op1, ...(twoLayer && irNotch ? [irNotch] : [])], holes: twoLayer ? [...irF2, ...pocketHoles, ...cardHoles] : irF1 }], explode: [0, 360, 0] });
     }
   }
   const outer = { X: X + 2 * ct, Z: Z + 2 * ct, H: H + (p.frameFinish === 'mismo' ? ct : 0) };
@@ -479,16 +479,16 @@ export function buildDesign(p) {
       if (k === 'hdmi' && !hdmiOut) {
         if (p.source === 'stick') fixtures.push({ kind: 'dongle', pos: [x + sgn * 55, y, z], sgn, step: 'cables' });
         else {
-          const px0 = wallIn - sgn * 75, pz0 = z - 20;
+          const px0 = wallIn - sgn * (p.battenW + 56), pz0 = z - 20;
           fixtures.push({ kind: 'minipc', pos: [px0, yBaseTop + 16, pz0], step: 'cables' });
           fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts: [[x + sgn * 4, y, z], [x + sgn * 30, y - 4, z], [px0 - sgn * 40, yBaseTop + 18, pz0]], r: 2.6, color: '#2a2b30', step: 'cables' });
-          fixtures.push({ kind: 'strip', pos: [wallIn - sgn * (p.battenW + 26), yBaseTop + 8, cz[0] - 75], step: 'cables' });
+          fixtures.push({ kind: 'strip', pos: [wallIn - sgn * (p.battenW + 26), yBaseTop + 8, Math.max(cz[0] - 75, zi0 + p.battenW + 62)], step: 'cables' });
         }
         return;
       }
       const zc = cz[k === 'power' ? 0 : 1];
       if (k === 'power' && p.source === 'minipc') {
-        const sx = wallIn - sgn * (p.battenW + 26), sz = cz[0] - 75;
+        const sx = wallIn - sgn * (p.battenW + 26), sz = Math.max(cz[0] - 75, zi0 + p.battenW + 62);
         fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts: [[x + sgn * 4, y, z], [x + sgn * 40, y - 6, z], [sx - sgn * 10, yBaseTop + 12, sz + 40], [sx, yBaseTop + 10, sz + 62]], r: 3.2, color: '#1b1b1c', step: 'cables' });
         fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts: [[sx, yBaseTop + 10, sz - 62], [wallIn - sgn * 40, cy - 6, (sz + zc) / 2], [wallIn - sgn * 12, cy, zc], [wallX + sgn * 30, cy, zc], [wallX + sgn * 110, Math.max(6, cy * 0.4), zc - 30], [wallX + sgn * 380, 6, zc - 120]], r: 3.2, color: '#1b1b1c', step: 'cables' });
         return;

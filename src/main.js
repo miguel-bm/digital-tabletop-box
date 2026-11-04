@@ -83,16 +83,18 @@ const viewer = new Viewer($('#viewport'), {
   onEditDim: (dm, v) => {
     // la cota exterior se consigue moviendo el margen interior (largo/ancho) o el hueco bajo la tele (alto)
     const M = design.metrics, P = { ...params };
-    if (dm.edit === 'X') P.margin = Math.round((params.margin + (v - M.outer.X) / 2) * 10) / 10;
-    if (dm.edit === 'Z') P.margin = Math.round((params.margin + (v - M.outer.Z) / 2) * 10) / 10;
-    if (dm.edit === 'H') P.gapBelow = Math.round((params.gapBelow + (v - (M.outer.H + M.y0))) * 10) / 10;
+    if (dm.edit === 'X') P.margin = Math.round((params.margin + (v - M.outer.X) / 2) * 1000) / 1000;
+    if (dm.edit === 'Z') P.margin = Math.round((params.margin + (v - M.outer.Z) / 2) * 1000) / 1000;
+    if (dm.edit === 'H') P.gapBelow = Math.round((params.gapBelow + (v - (M.outer.H + M.y0))) * 1000) / 1000;
     const pd = PARAM_INDEX[dm.edit === 'H' ? 'gapBelow' : 'margin'];
     const k = dm.edit === 'H' ? 'gapBelow' : 'margin';
     const cl = Math.max(pd.min, Math.min(pd.max, P[k]));
-    if (cl !== P[k]) toast(`Limitado: ${pd.l} entre ${pd.min} y ${pd.max} mm`);
+    const limited = cl !== P[k];
     P[k] = cl;
+    if (P[k] === params[k]) return;
     commit(P);
-    if (dm.edit === 'X' || dm.edit === 'Z') toast(`Margen interior → ${f1(P.margin)} mm (cambia largo y ancho a la vez)`);
+    if (limited) toast(`Limitado: ${pd.l} entre ${pd.min} y ${pd.max} mm`);
+    else if (dm.edit === 'X' || dm.edit === 'Z') toast(`Margen interior → ${f1(P.margin)} mm (cambia largo y ancho a la vez)`);
   },
   onPick: pc => { if (pc && pc.role !== 'tv') { selectTab('despiece'); const row = document.querySelector(`[data-pid="${pc.id}"]`); if (row) { row.scrollIntoView({ block: 'center', behavior: 'smooth' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 1200); } } },
 });
@@ -485,6 +487,7 @@ function setView(v) {
 
 // ───────── guía de montaje ─────────
 const guide = { on: false, i: 0, steps: [] };
+const measureFocus = { k: null, t: null };
 let doneSteps = {};
 try { doneSteps = JSON.parse(localStorage.getItem('tabletop.done') || '{}'); } catch { /* nada */ }
 $('#guide-done').addEventListener('change', e => {
@@ -537,11 +540,15 @@ function showStep(i, fly = true) {
       const pd = PARAM_INDEX[k];
       const lab = el('label', {}, `<span>${pd.l.replace(' · medir', '')}</span>`);
       const inp = el('input', { value: params[k], inputMode: 'decimal' });
-      inp.addEventListener('change', () => { const v = Number(String(inp.value).replace(',', '.')); if (isFinite(v)) commit({ ...params, [k]: Math.max(pd.min, Math.min(pd.max, v)) }); });
+      inp.dataset.k = k;
+      inp.addEventListener('focusin', () => { clearTimeout(measureFocus.t); measureFocus.k = k; });
+      inp.addEventListener('focusout', () => { measureFocus.t = setTimeout(() => (measureFocus.k = null), 300); });
+      inp.addEventListener('change', () => { if (inp.value.trim() === '') { inp.value = params[k]; return; } const v = Number(String(inp.value).replace(',', '.')); if (isFinite(v) && v !== params[k]) commit({ ...params, [k]: Math.max(pd.min, Math.min(pd.max, v)) }); });
       lab.append(inp, el('em', {}, pd.u));
       form.append(lab);
     });
     $('#guide-parts').append(form);
+    if (measureFocus.k) { const f = form.querySelector(`input[data-k="${measureFocus.k}"]`); if (f) { f.focus(); f.select(); } }
   }
   $('#guide-done').checked = !!doneSteps[st.key];
   $('#guide-chapters').innerHTML = guide.steps.map((s, k) => `<button data-k="${k}" class="${k === i ? 'on' : ''} ${doneSteps[s.key] ? 'done' : ''}"><b>${doneSteps[s.key] ? '✓' : k + 1}</b>${s.title.split(':')[0]}</button>`).join('');

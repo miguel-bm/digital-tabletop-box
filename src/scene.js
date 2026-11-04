@@ -287,7 +287,7 @@ export class Viewer {
     };
     this.model.children.forEach(g => { g.visible = vis(g); });
     this.fx.children.forEach(g => { g.visible = vis(g); });
-    this.tableGroup.visible = !hid.has('escena') || !!hi;
+    this.tableGroup.visible = (!hid.has('escena') || !!hi) && !this.overlayHides;
     // resaltado
     this.model.children.forEach(g => {
       const on = hi && hi.now.has(g.userData.piece.id);
@@ -305,6 +305,16 @@ export class Viewer {
   }
   setExplode(v) { this.state.explode = v; }
   setLid(on) { this.state.lidOn = on; }
+  // capa de resultados (cálculos): oculta el modelo si se pide
+  setOverlay(obj, { hideModel = false } = {}) {
+    this.overlay.clear();
+    if (obj) this.overlay.add(obj);
+    this.overlayHides = !!(obj && hideModel);
+    this.model.visible = !this.overlayHides;
+    this.fx.visible = !this.overlayHides;
+    this.tableGroup.visible = !this.overlayHides && !this.state.hidden.has('escena');
+    this.dims.group.visible = !obj;
+  }
   setFlip(on) { this.flipTarget = on ? 1 : 0; }
   setHighlight(h) { this.highlight = h; this.applyVisibility(); }
 

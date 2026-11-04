@@ -631,7 +631,22 @@ $('#btn-share').addEventListener('click', async () => {
 });
 const helpEl = $('#help');
 const helpHTML = helpEl.querySelector('.help-card').innerHTML;
-function showHelp() { const c = helpEl.querySelector('.help-card'); if (c.dataset.mode) { c.innerHTML = helpHTML; delete c.dataset.mode; c.querySelector('#help-close').onclick = () => (helpEl.hidden = true); } helpEl.hidden = false; }
+function showHelp() {
+  const c = helpEl.querySelector('.help-card');
+  if (c.dataset.mode) { c.innerHTML = helpHTML; delete c.dataset.mode; c.querySelector('#help-close').onclick = () => (helpEl.hidden = true); }
+  fillSummary();
+  helpEl.hidden = false;
+}
+function fillSummary() {
+  const el = $('#help-summary'); if (!el || !design) return;
+  const m = design.metrics, bom = buildBOM(design), steps = planAssembly(design), u = boardUsage(design);
+  const work = steps.reduce((s, x) => s + x.min, 0), dry = steps.reduce((s, x) => s + x.dry, 0);
+  el.innerHTML = [
+    ['Medidas', `${Math.round(m.outer.X)} × ${Math.round(m.outer.Z)} × ${Math.round(m.outer.H + m.y0)} mm`],
+    ['Peso', `${f1(m.mass.total)} kg`], ['Tableros', Object.entries(u.byT).map(([T, n]) => `${n} × ${T} mm`).join(' + ')],
+    ['Coste', `≈ ${eur(bom.total)}`], ['Taller', `${fmtMin(work)} + ${fmtMin(dry)} de secados`], ['Rejilla 1"', `${m.gridCells[0]} × ${m.gridCells[1]} casillas`],
+  ].map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+}
 $('#btn-help').addEventListener('click', () => (helpEl.hidden ? showHelp() : (helpEl.hidden = true)));
 $('#help-close').addEventListener('click', () => (helpEl.hidden = true));
 helpEl.addEventListener('click', e => { if (e.target === helpEl) helpEl.hidden = true; });
@@ -717,4 +732,4 @@ renderReadouts();
 updateInsets();
 if (urlStep && Number.isFinite(Number(urlStep))) openGuide(Math.max(0, Number(urlStep) - 1));
 if (fromLink) { hist.past.push(fromLink); save(); toast('Diseño cargado desde el enlace · ⌘Z vuelve al tuyo'); }
-try { if (!localStorage.getItem('tabletop.seenHelp')) { helpEl.hidden = false; localStorage.setItem('tabletop.seenHelp', '1'); } } catch { /* nada */ }
+try { if (!localStorage.getItem('tabletop.seenHelp')) { fillSummary(); helpEl.hidden = false; localStorage.setItem('tabletop.seenHelp', '1'); } } catch { /* nada */ }

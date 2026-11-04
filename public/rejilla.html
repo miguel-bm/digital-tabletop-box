@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rejilla de calibración · tablero digital</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { margin: 0; height: 100%; background: #111; overflow: hidden; font: 14px 'IBM Plex Sans Condensed', 'Arial Narrow', sans-serif; color: #e2e4e7; }
+    canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+    .ui { position: fixed; left: 16px; top: 16px; background: rgba(21, 23, 26, .92); border: 1px solid rgba(255, 255, 255, .14); border-radius: 10px; padding: 12px 14px; max-width: 360px; line-height: 1.45; }
+    .ui h1 { margin: 0 0 6px; font-size: 16px; letter-spacing: .12em; text-transform: uppercase; }
+    .ui label { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    .ui input[type=number] { width: 80px; background: #000; color: inherit; border: 1px solid #444; border-radius: 6px; padding: 3px 6px; font: 600 13px ui-monospace, monospace; }
+    .ui select { background: #000; color: inherit; border: 1px solid #444; border-radius: 6px; padding: 3px 6px; }
+    .ui button { background: #ffb020; color: #15171a; border: 0; border-radius: 7px; padding: 6px 12px; font-weight: 600; cursor: pointer; margin-right: 6px; }
+    .ui small { color: #8a919b; display: block; margin-top: 6px; }
+    .ui.hide { display: none; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div class="ui" id="ui">
+    <h1>Rejilla de 1"</h1>
+    <div>Abre esta página en la tele (navegador o enviada desde el móvil) a pantalla completa y mide una casilla con una regla: debe medir <b>25,4 mm</b>. Si no, ajusta los píxeles por casilla hasta que coincida y usa ese valor en Foundry / Owlbear / Roll20.</div>
+    <label>Píxeles de pantalla por casilla <input id="px" type="number" step="0.1" min="10" max="300" /></label>
+    <label>Rejilla <select id="kind"><option value="sq">Cuadrada</option><option value="hex">Hexagonal</option><option value="dots">Puntos</option></select></label>
+    <label>Fondo <select id="bg"><option value="#111">Oscuro</option><option value="#e9e3d4">Pergamino</option><option value="#3d5a2c">Hierba</option></select></label>
+    <button id="fs">Pantalla completa</button><button id="hide">Ocultar panel (H)</button>
+    <small id="info"></small>
+  </div>
+  <script>
+    const q = new URLSearchParams(location.search);
+    const px = document.getElementById('px'), kind = document.getElementById('kind'), bg = document.getElementById('bg');
+    px.value = q.get('px') || localStorage.getItem('rejilla.px') || 51.2;
+    const c = document.getElementById('c'), x = c.getContext('2d');
+    function draw() {
+      const dpr = devicePixelRatio || 1;
+      c.width = innerWidth * dpr; c.height = innerHeight * dpr;
+      const cell = Number(px.value) || 51.2;   // en píxeles físicos
+      x.fillStyle = bg.value; x.fillRect(0, 0, c.width, c.height);
+      const light = bg.value === '#111';
+      x.strokeStyle = light ? 'rgba(255,255,255,.35)' : 'rgba(0,0,0,.35)'; x.fillStyle = x.strokeStyle; x.lineWidth = Math.max(1, dpr);
+      if (kind.value === 'sq' || kind.value === 'dots') {
+        for (let X = 0; X <= c.width; X += cell) for (let Y = 0; Y <= c.height; Y += cell) {
+          if (kind.value === 'dots') { x.beginPath(); x.arc(X, Y, 2 * dpr, 0, 7); x.fill(); }
+        }
+        if (kind.value === 'sq') {
+          for (let X = 0; X <= c.width; X += cell) { x.beginPath(); x.moveTo(X, 0); x.lineTo(X, c.height); x.stroke(); }
+          for (let Y = 0; Y <= c.height; Y += cell) { x.beginPath(); x.moveTo(0, Y); x.lineTo(c.width, Y); x.stroke(); }
+        }
+      } else {
+        const R = cell / Math.sqrt(3), hw = cell;
+        for (let row = -1; row * 1.5 * R < c.height + R; row++) for (let col = -1; col * hw < c.width + hw; col++) {
+          const cx = col * hw + (row % 2 ? hw / 2 : 0), cy = row * 1.5 * R;
+          x.beginPath(); for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + k * Math.PI / 3; x.lineTo(cx + R * Math.cos(a), cy + R * Math.sin(a)); } x.closePath(); x.stroke();
+        }
+      }
+      // casilla de referencia
+      x.strokeStyle = '#ffb020'; x.lineWidth = 3 * dpr;
+      const ox = Math.floor(c.width / 2 / cell) * cell, oy = Math.floor(c.height / 2 / cell) * cell;
+      x.strokeRect(ox, oy, cell, cell);
+      document.getElementById('info').textContent = `${c.width} × ${c.height} px físicos (dpr ${dpr}) · caben ${Math.floor(c.width / cell)} × ${Math.floor(c.height / cell)} casillas`;
+      try { localStorage.setItem('rejilla.px', px.value); } catch (e) {}
+    }
+    [px, kind, bg].forEach(e => e.addEventListener('input', draw));
+    addEventListener('resize', draw);
+    document.getElementById('fs').onclick = () => document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+    document.getElementById('hide').onclick = () => document.getElementById('ui').classList.add('hide');
+    addEventListener('keydown', e => { if (e.key === 'h' || e.key === 'H') document.getElementById('ui').classList.toggle('hide'); });
+    c.addEventListener('click', () => document.getElementById('ui').classList.toggle('hide'));
+    draw();
+  </script>
+</body>
+</html>

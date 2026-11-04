@@ -357,6 +357,7 @@ function renderData() {
       <dt>Peana 25 mm / 32 mm</dt><dd>${f1(25 * m.pxPerMm)} / ${f1(32 * m.pxPerMm)} px</dd>
     </dl>
     <p class="note">En Foundry, Owlbear o Roll20 pon el tamaño de casilla a <b>${Math.round(m.inchPx * 10) / 10} px</b> y la imagen a pantalla completa sin escalado: las peanas de 25 mm coincidirán con las casillas.</p>
+    <div class="btnrow"><a class="btn-sm" href="/rejilla.html?px=${Math.round(m.inchPx * 10) / 10}" target="_blank" rel="noopener">Abrir rejilla de calibración ↗</a></div>
     <div class="h-sub">Pila de capas (de abajo arriba)</div>
     <table class="cut stack"><tbody>
       ${m.y0 ? `<tr><td>Patas</td><td class="n">0 → ${f1(m.y0)}</td></tr>` : ''}
@@ -443,6 +444,7 @@ function openGuide(i = 0) {
 }
 function closeGuide() {
   guide.on = false;
+  if (typeof stopPlay === 'function' && playT) stopPlay();
   if (location.search.includes('paso=')) history.replaceState(null, '', location.pathname);
   document.body.classList.remove('guiding');
   $('#guide').hidden = true;
@@ -455,7 +457,9 @@ function showStep(i, fly = true) {
   guide.i = i = Math.max(0, Math.min(guide.steps.length - 1, i));
   const st = guide.steps[i];
   const fxSteps = new Set();
-  guide.steps.slice(0, i + 1).forEach(s => { fxSteps.add(s.key); (s.fixtures || []).forEach(f => fxSteps.add(f)); });
+  guide.steps.slice(0, i + 1).forEach(s => fxSteps.add(s.key));
+  (st.fixtures || []).forEach(f => fxSteps.add(f));
+  if (i > 0 && guide.steps.findIndex(s => s.key === 'tv') <= i) fxSteps.add('tv');
   viewer.setHidden(new Set(st.lid ? [] : ['tapa']));
   viewer.setHighlight({ now: new Set(st.now), done: new Set(st.done || []), fixtures: fxSteps });
   viewer.setFlip && viewer.setFlip(!!st.flip);
@@ -483,6 +487,14 @@ $('#guide-prev').addEventListener('click', () => showStep(guide.i - 1));
 $('#guide-next').addEventListener('click', () => (guide.i === guide.steps.length - 1 ? (closeGuide(), history.replaceState(null, '', location.pathname)) : showStep(guide.i + 1)));
 $('#guide-explode').addEventListener('input', () => showStep(guide.i, false));
 $('#guide-min').addEventListener('click', () => $('#guide').classList.toggle('min'));
+// reproducción automática del montaje
+let playT = null;
+function stopPlay() { clearInterval(playT); playT = null; $('#guide-play').textContent = '▶'; }
+$('#guide-play').addEventListener('click', () => {
+  if (playT) return stopPlay();
+  $('#guide-play').textContent = '❚❚';
+  playT = setInterval(() => { if (!guide.on || guide.i >= guide.steps.length - 1) return stopPlay(); showStep(guide.i + 1); }, 4500);
+});
 
 // ───────── planos (carga diferida) ─────────
 const plans = { on: false, set: 'conjunto' };

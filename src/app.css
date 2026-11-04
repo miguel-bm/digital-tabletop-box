@@ -142,3 +142,8 @@ code { font: 12px var(--mono); color: var(--accent); }
 .bars i { height: 10px; border-radius: 0 4px 4px 0; background: var(--accent); display: block; }
 .bars b { font: 600 11px var(--mono); }
 .bars em { font: 10.5px var(--mono); color: var(--muted); font-style: normal; min-width: 44px; text-align: right; }
+
+.ptags { position: absolute; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
+.ptags span { position: absolute; left: 0; top: 0; font: 600 10px var(--mono); color: var(--ink); background: rgba(255, 176, 32, .92); border-radius: 4px; padding: 1px 4px; box-shadow: 0 2px 6px rgba(0, 0, 0, .25); white-space: nowrap; }
+
+a.btn-sm { color: var(--text); text-decoration: none; display: inline-block; }

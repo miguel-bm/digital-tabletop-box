@@ -97,6 +97,10 @@ export class Viewer {
       this.onPick && this.onPick(this.hovered ? this.hovered.userData.piece : null);
     });
     this.highlight = null;   // { now:Set(ids), done:Set(ids) } en la guía
+    this.tagHost = document.createElement('div');
+    this.tagHost.className = 'ptags';
+    host.appendChild(this.tagHost);
+    this.tags = new Map();
     this.autoFit = true;
     this.controls.addEventListener('start', () => { this.autoFit = false; this.camTween = null; });
     new ResizeObserver(() => this.resize()).observe(host);
@@ -451,6 +455,29 @@ export class Viewer {
     this.controls.update();
     this.dims.update(this.camera, this.host.clientWidth / this.host.clientHeight);
     this.renderer.render(this.scene, this.camera);
+    this.updateTags();
+  }
+
+  // etiquetas con el ID de cada pieza cuando están separadas (o resaltadas en la guía)
+  updateTags() {
+    const show = (this.anim.explode > 0.35 || this.highlight) && !this.overlayHides;
+    this.tagHost.style.display = show ? '' : 'none';
+    if (!show || !this.design) return;
+    const w = this.host.clientWidth, h = this.host.clientHeight, v = new THREE.Vector3(), box = new THREE.Box3();
+    const seen = new Set();
+    for (const g of this.model.children) {
+      const pc = g.userData.piece;
+      const on = g.visible && pc.role !== 'piel' && (!this.highlight || this.highlight.now.has(pc.id));
+      let el = this.tags.get(pc.id);
+      if (!on) { if (el) el.style.display = 'none'; continue; }
+      if (!el) { el = document.createElement('span'); el.textContent = pc.id; el.title = pc.name; this.tagHost.appendChild(el); this.tags.set(pc.id, el); }
+      seen.add(pc.id);
+      box.setFromObject(g).getCenter(v).project(this.camera);
+      if (v.z > 1) { el.style.display = 'none'; continue; }
+      el.style.display = '';
+      el.style.transform = `translate(${((v.x + 1) / 2) * w}px, ${((1 - v.y) / 2) * h}px) translate(-50%, -50%)`;
+    }
+    this.tags.forEach((el, id) => { if (!this.design.pieces.some(p => p.id === id)) { el.remove(); this.tags.delete(id); } });
   }
 
   // coloca piezas y herrajes según explosión, volteo y tapa

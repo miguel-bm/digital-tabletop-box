@@ -1,0 +1,92 @@
+import { pieceCut } from './model.js';
+
+const STOCK = {
+  tablero: p => `Contrachapado ${p.t} mm`,
+  taco: () => 'Listón / taco de pino',
+  protector: () => 'Protector (a medida)',
+  espuma: () => 'Espuma',
+};
+
+export const BOARD = { W: 2440, H: 1220, kerf: 4, edge: 10 };
+
+// Filas del despiece: piezas iguales agrupadas.
+export function cutRows(d) {
+  const rows = new Map();
+  d.pieces.forEach(pc => {
+    if (pc.role === 'tv' || pc.skin || pc.role === 'burlete') return;
+    const c = pieceCut(pc);
+    const stock = c.stock || 'tablero';
+    const k = [stock, pc.name.replace(/ (izq\.|der\.|izquierdo|derecho|fondo|frente|frontal|del fondo)$/i, ''), c.L, c.W, c.T].join('|');
+    if (!rows.has(k)) rows.set(k, { stock, stockLabel: STOCK[stock](d.params), name: pc.name, L: c.L, W: c.W, T: c.T, qty: 0, ids: [], notes: c.notes || notesFor(pc) });
+    const r = rows.get(k); r.qty++; r.ids.push(pc.id);
+    if (r.qty > 1) r.name = r.name.replace(/ (izq\.|der\.|izquierdo|derecho|fondo|frente|frontal|del fondo)$/i, '');
+  });
+  const order = ['tablero', 'taco', 'protector', 'espuma'];
+  return [...rows.values()].sort((a, b) => order.indexOf(a.stock) - order.indexOf(b.stock) || b.L * b.W - a.L * a.W);
+}
+
+function notesFor(pc) {
+  const tags = new Map();
+  pc.solids.forEach(s => (s.holes || []).forEach(h => { if (h.tag) tags.set(h.tag, (tags.get(h.tag) || 0) + 1); }));
+  pc.solids.forEach(s => (s.notches || []).forEach(() => tags.set('Muesca en canto', (tags.get('Muesca en canto') || 0) + 1)));
+  if (pc.role === 'marco') tags.set('Ventana interior', 1);
+  return [...tags.entries()].map(([t, n]) => (n > 1 ? `${n}× ` : '') + t).join(' · ');
+}
+
+export function cutListCSV(d) {
+  const rows = cutRows(d);
+  const lines = [['ID', 'Pieza', 'Material', 'Largo', 'Ancho', 'Grueso', 'Ud', 'Notas'].join(';')];
+  rows.forEach(r => lines.push([r.ids.join(' '), r.name, r.stockLabel, r.L, r.W, r.T, r.qty, r.notes || ''].map(v => String(v).replace(/;/g, ',')).join(';')));
+  return lines.join('\n');
+}
+
+// Optimización de corte en tableros (guillotina por franjas, giro permitido).
+export function packBoards(d) {
+  const parts = [];
+  d.pieces.forEach(pc => {
+    if (pc.role === 'tv' || pc.skin) return;
+    const c = pieceCut(pc);
+    if ((c.stock || 'tablero') !== 'tablero') return;
+    if (pc.role === 'pared' && pc.solids.length > 1) { /* galce: sigue siendo una pieza de t */ }
+    parts.push({ id: pc.id, name: pc.name, w: c.L, h: c.W, frame: pc.role === 'marco' || pc.role === 'tapa' && pc.key === 'lidTop' });
+  });
+  const { W, H, kerf, edge } = BOARD;
+  const boards = [];
+  parts.sort((a, b) => b.h - a.h || b.w - a.w);
+  const newBoard = () => { const b = { strips: [], used: edge, parts: [] }; boards.push(b); return b; };
+  for (const pt of parts) {
+    let w = pt.w, h = pt.h;
+    if (w > W - 2 * edge && h <= W - 2 * edge) [w, h] = [h, w];
+    let placed = false;
+    for (const b of boards) {
+      for (const s of b.strips) {
+        if (h <= s.h && s.x + w <= W - edge) { b.parts.push({ ...pt, x: s.x, y: s.y, w, h }); s.x += w + kerf; placed = true; break; }
+      }
+      if (placed) break;
+      if (b.used + h <= H - edge) {
+        const s = { y: b.used, h, x: edge };
+        b.strips.push(s); b.used += h + kerf;
+        b.parts.push({ ...pt, x: s.x, y: s.y, w, h }); s.x += w + kerf; placed = true; break;
+      }
+    }
+    if (!placed) {
+      const b = newBoard();
+      const s = { y: b.used, h, x: edge };
+      b.strips.push(s); b.used += h + kerf;
+      b.parts.push({ ...pt, x: s.x, y: s.y, w, h }); s.x += w + kerf;
+    }
+  }
+  return boards;
+}
+
+export function boardUsage(d) {
+  const boards = packBoards(d);
+  let area = 0, battenM = 0;
+  d.pieces.forEach(pc => {
+    if (pc.role === 'tv' || pc.skin) return;
+    const c = pieceCut(pc);
+    if ((c.stock || 'tablero') === 'tablero') area += c.L * c.W * 1e-6;
+    if (c.stock === 'taco') battenM += (c.L + 5) / 1000;
+  });
+  return { boards: boards.length, area, battenM, packed: boards };
+}

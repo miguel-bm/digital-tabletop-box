@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#15171a" />
+  <meta name="description" content="Caja de contrachapado para convertir una tele de 43&quot; en un tablero de juego digital: modelo 3D paramétrico, planos, despiece, montaje y cálculos." />
+  <title>Tablero digital · caja para tele de 43"</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='5' width='20' height='14' rx='2' fill='%2315171a'/%3E%3Crect x='4.5' y='7.5' width='15' height='9' fill='%23ffb020'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+  <link rel="stylesheet" href="/src/app.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="viewport"></div>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark">◩</span>
+        <div>
+          <h1>TABLERO DIGITAL</h1>
+          <small id="brand-dims">—</small>
+        </div>
+      </div>
+      <nav class="seg" id="views">
+        <button data-view="persp" class="on" data-icon="cube" data-tip="Vista 3D · 1"></button>
+        <button data-view="top" data-icon="plan" data-tip="Planta · 2"></button>
+        <button data-view="front" data-icon="front" data-tip="Alzado · 3"></button>
+        <button data-view="side" data-icon="side" data-tip="Perfil · 4"></button>
+        <button data-view="section" data-icon="section" data-tip="Sección · 5"></button>
+      </nav>
+      <div class="actions">
+        <button id="undo" class="icon" data-icon="undo" data-tip="Deshacer · ⌘Z"></button>
+        <button id="redo" class="icon" data-icon="redo" data-tip="Rehacer · ⇧⌘Z"></button>
+        <span class="sep"></span>
+        <button id="btn-png" class="icon" data-icon="camera" data-tip="Captura PNG"></button>
+        <button id="btn-export" class="icon" data-icon="download" data-tip="Guardar diseño (JSON)"></button>
+        <label class="btn icon" data-icon="upload" data-tip="Cargar diseño (JSON)"><input id="file-import" type="file" accept="application/json" hidden /></label>
+        <button id="btn-reset" class="icon" data-icon="reset" data-tip="Volver a los valores por defecto"></button>
+        <span class="sep"></span>
+        <button id="btn-guide" data-icon="wrench" data-label="Montaje" data-tip="Guía de montaje paso a paso"></button>
+        <button id="btn-sim" data-icon="sim" data-label="Cálculos" data-tip="Simulaciones de rigidez, carga y temperatura"></button>
+        <button id="btn-plans" class="primary" data-icon="setsquare" data-label="Planos" data-tip="Planos, despiece y corte"></button>
+      </div>
+    </header>
+
+    <aside class="panel left" id="panel-params">
+      <div class="panel-head">
+        <span>Diseño</span>
+        <input id="param-filter" type="search" placeholder="filtrar…" />
+      </div>
+      <div class="panel-body">
+        <div class="presets-wrap"><div class="h-sub">Puntos de partida</div><div class="presets" id="presets"></div></div>
+        <div id="params"></div>
+      </div>
+    </aside>
+
+    <aside class="panel right" id="panel-side">
+      <nav class="tabs" id="tabs">
+        <button data-tab="acabados" class="on" data-icon="palette" data-tip="Acabados"></button>
+        <button data-tab="despiece" data-icon="list" data-tip="Despiece"></button>
+        <button data-tab="herrajes" data-icon="cart" data-tip="Compra y herrajes"></button>
+        <button data-tab="datos" data-icon="gauge" data-tip="Datos, peso y pantalla"></button>
+        <button data-tab="avisos" data-icon="alert" data-tip="Avisos"><em id="warn-count"></em></button>
+      </nav>
+      <div class="panel-body">
+        <section data-pane="acabados" class="on" id="pane-acabados"></section>
+        <section data-pane="despiece" id="pane-despiece"></section>
+        <section data-pane="herrajes" id="pane-herrajes"></section>
+        <section data-pane="datos" id="pane-datos"></section>
+        <section data-pane="avisos" id="pane-avisos"></section>
+      </div>
+    </aside>
+
+    <footer class="dock">
+      <div class="dock-row">
+        <span class="dock-label" data-icon="eye" data-tip="Mostrar / ocultar"></span>
+        <div class="chips" id="vis-layers"></div>
+      </div>
+      <div class="dock-row">
+        <label class="slider" data-tip="Separar las piezas"><span data-icon="explode"></span><input id="explode" type="range" min="0" max="1" step="0.01" value="0" /></label>
+        <div class="chips">
+          <button class="chip icon" id="tg-dims" data-icon="ruler" data-tip="Cotas"></button>
+          <button class="chip icon on" id="tg-edges" data-icon="edges" data-tip="Aristas"></button>
+          <button class="chip icon" id="tg-xray" data-icon="xray" data-tip="Rayos X · X"></button>
+          <button class="chip icon" id="tg-section" data-icon="section" data-tip="Corte por el centro · S"></button>
+          <button class="chip icon" id="tg-lid" data-icon="box" data-tip="Poner / quitar la tapa"></button>
+        </div>
+        <select id="map-style" class="mini-select" data-tip="Qué se ve en la pantalla">
+          <option value="mazmorra">Mazmorra</option><option value="bosque">Bosque</option><option value="hex">Hexágonos</option><option value="apagada">Apagada</option>
+        </select>
+        <div class="readouts" id="readouts"></div>
+      </div>
+    </footer>
+
+    <div id="guide" hidden>
+      <div class="guide-chapters" id="guide-chapters"></div>
+      <div class="guide-head">
+        <span class="guide-n" id="guide-n"></span>
+        <strong id="guide-title"></strong>
+        <button id="guide-min" class="guide-min" title="Minimizar / ampliar">▾</button>
+        <button id="guide-close" title="Salir de la guía (Esc)">✕</button>
+      </div>
+      <div class="guide-body" id="guide-body">
+        <p id="guide-text"></p>
+        <div class="guide-access" id="guide-access"></div>
+        <div class="guide-parts" id="guide-parts"></div>
+      </div>
+      <div class="guide-nav">
+        <button id="guide-prev">‹ Anterior</button>
+        <label class="slider guide-explode"><span>Separar</span><input id="guide-explode" type="range" min="0" max="1" step="0.01" value="0.35" /></label>
+        <span class="grow"></span>
+        <button id="guide-next" class="primary">Siguiente ›</button>
+      </div>
+    </div>
+
+    <div id="sim" hidden></div>
+
+    <nav id="mnav">
+      <button data-sheet="left"><i>⚙</i>Diseño</button>
+      <button data-sheet="right"><i>◐</i>Datos</button>
+      <button data-sheet="dock"><i>◎</i>Vista</button>
+      <button data-sheet="guide"><i>▤</i>Montaje</button>
+      <button data-sheet="sim"><i>∿</i>Cálculos</button>
+      <button data-sheet="plans"><i>▦</i>Planos</button>
+    </nav>
+
+    <div id="tooltip" hidden></div>
+    <div id="toast" hidden></div>
+
+    <div id="plans" hidden>
+      <div class="plans-bar">
+        <strong>Planos</strong>
+        <nav class="seg" id="plans-tabs">
+          <button data-set="conjunto" class="on">Conjunto</button>
+          <button data-set="despiece">Despiece</button>
+          <button data-set="corte">Corte</button>
+          <button data-set="taller">Taller</button>
+        </nav>
+        <span class="muted" id="plans-info"></span>
+        <span class="grow"></span>
+        <button id="plans-svg">Descargar SVG</button>
+        <button id="plans-csv">Despiece CSV</button>
+        <button id="plans-print" class="primary">Imprimir / PDF</button>
+        <button id="plans-close">Cerrar ✕</button>
+      </div>
+      <div class="sheets" id="sheets"></div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

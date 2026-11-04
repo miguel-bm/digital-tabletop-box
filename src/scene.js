@@ -105,10 +105,17 @@ export class Viewer {
     r.setAnimationLoop(() => this.tick());
   }
 
+  // desplaza el centro óptico para que el modelo quede entre los paneles laterales
+  setInsets(left, right) { this.insets = [left, right]; this.resize(); if (this.autoFit && this.design) this.fit(true); }
   resize() {
     const w = this.host.clientWidth, h = this.host.clientHeight;
     this.renderer.setSize(w, h);
-    this.persp.aspect = w / h; this.persp.updateProjectionMatrix();
+    this.persp.aspect = w / h;
+    const [l, r] = this.insets || [0, 0];
+    const shift = (l - r) / 2;
+    if (Math.abs(shift) > 1) { this.persp.setViewOffset(w, h, -shift, 0, w, h); this.ortho.setViewOffset(w, h, -shift, 0, w, h); }
+    else { this.persp.clearViewOffset(); this.ortho.clearViewOffset(); }
+    this.persp.updateProjectionMatrix();
     this.updateOrtho();
     this.dims.setResolution(w, h);
   }
@@ -344,7 +351,10 @@ export class Viewer {
     const span = Math.max(M.outer.X, M.outer.Z * 1.6) * S;
     const cy = (M.H / 2) * S;
     let pos, target = new THREE.Vector3(0, cy, 0), ortho = true, up = new THREE.Vector3(0, 1, 0);
-    if (name === 'persp') { ortho = false; pos = new THREE.Vector3(-0.75 * span, 1.15 * span, 1.6 * span); target.set(0.06 * span, 0, 0); }
+    if (name === 'persp') { ortho = false; const w = this.host.clientWidth - ((this.insets || [0, 0])[0] + (this.insets || [0, 0])[1]), h = this.host.clientHeight - 190;
+      const vf = THREE.MathUtils.degToRad(this.persp.fov) / 2, hf = Math.atan(Math.tan(vf) * Math.max(0.3, w / Math.max(200, h)));
+      const dist = Math.max((0.74 * span) / Math.tan(hf), (0.42 * span) / Math.tan(vf));
+      pos = new THREE.Vector3(-0.85, 1.35, 1.85).normalize().multiplyScalar(dist); target.set(0.04 * span, 0, 0.05 * span); }
     else if (name === 'top') { pos = new THREE.Vector3(0, 3, 0.0001); up = new THREE.Vector3(0, 0, -1); }
     else if (name === 'front') { pos = new THREE.Vector3(0, cy, 3); }
     else if (name === 'side') { pos = new THREE.Vector3(3, cy, 0); }

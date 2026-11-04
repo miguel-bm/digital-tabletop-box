@@ -154,13 +154,14 @@ function renderPresets() {
 }
 
 // ───────── panel derecho ─────────
-function selectTab(t) {
+function selectTab(t, open = true) {
   ui.tab = t; save();
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   document.querySelectorAll('section[data-pane]').forEach(s => s.classList.toggle('on', s.dataset.pane === t));
-  $('#panel-side').classList.remove('collapsed');
+  if (open) $('#panel-side').classList.remove('collapsed');
 }
 document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => selectTab(b.dataset.tab)));
+addEventListener('resize', () => { if (viewer.autoFit) viewer.fit(false); });
 
 function renderSide() {
   renderFinishes();
@@ -531,12 +532,22 @@ document.querySelectorAll('#mnav button').forEach(b => b.addEventListener('click
   if (s === 'plans') openPlans();
 }));
 
+// el modelo se centra en el hueco que dejan los paneles
+function updateInsets() {
+  if (mq.matches) { viewer.setInsets(0, 0); return; }
+  const L = !$('#panel-params').classList.contains('collapsed') && !document.body.classList.contains('guiding') ? 342 : 0;
+  const R = document.body.classList.contains('simming') ? 424 : !$('#panel-side').classList.contains('collapsed') && !document.body.classList.contains('guiding') ? 384 : 0;
+  viewer.setInsets(L, R);
+}
+new MutationObserver(updateInsets).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+['#panel-params', '#panel-side'].forEach(s => new MutationObserver(updateInsets).observe($(s), { attributes: true, attributeFilter: ['class'] }));
+
 // ───────── arranque ─────────
 decorate();
 setupTips();
 renderPresets();
 renderDock();
-selectTab(ui.tab);
+selectTab(ui.tab, false);
 design = buildDesign(params);
 viewer.setDesign(design);
 viewer.setHidden(new Set(ui.hidden));
@@ -548,4 +559,5 @@ viewer.view('persp', false);
 renderParams(false);
 renderSide();
 renderReadouts();
+updateInsets();
 if (urlStep) openGuide(Number(urlStep) - 1);

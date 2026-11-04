@@ -577,6 +577,7 @@ export function buildDesign(p) {
   else if (mass.total > 18) warn('info', `Peso total ${r1(mass.total)} kg: se lleva con una mano, pero mejor con el asa bien atornillada y sin balancearla.`);
   if (prot.mat === 'glass') warn('info', `El vidrio templado añade ${r1(kgProt)} kg y no se puede cortar después de templar: pídelo a medida (${r1(protRect[2] - protRect[0])} × ${r1(protRect[3] - protRect[1])}).`);
   if (!p.vents && !p.fans) warn('warn', 'Sin rejillas ni ventiladores la tele (≈ 54 W) se calienta dentro de la caja. Activa al menos las rejillas.');
+  if (p.fit < 1.5) warn('warn', `Holgura tele ↔ caja de ${p.fit} mm: si la tele real mide 1–2 mm más que la ficha, no entra. Mídela antes de cortar o deja ≥ 2 mm.`);
   if (p.gasket === 0) warn('info', 'Sin burlete, el marco apoya directamente en el bisel de la tele: puede marcarlo o vibrar.');
   if (wallH - t - bh < 30) warn('warn', 'Las paredes quedan muy bajas para los pasacables y las rejillas.');
   if (X > 2420 || Z > 1200 || (p.lid && Math.min(X, Z) + 2 * t + 10 > 1200)) warn('error', 'Alguna pieza no cabe en un tablero estándar de 2440 × 1220 (con 10 mm de margen).');

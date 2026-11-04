@@ -34,7 +34,8 @@ cuatro tacos encolados al marco. Quitando la base se llega a cables y tele sin t
   (37 × 21 casillas, 51,2 px por pulgada) y una pestaña de **decisiones** con comparativas calculadas.
 - **Planos A3**: conjunto (planta, alzados, sección 1:1), despiece con huecos acotados, optimización
   de corte (tablero y listones), guía de taller con lista de compra y vista explosionada.
-  SVG, CSV, **DXF para CNC** o imprimir a PDF.
+  SVG, CSV, **DXF para CNC** o imprimir a PDF; **plantillas 1:1** por trozos de A3 para marcar taladros
+  y el **patrón del revestimiento** (tira continua con pliegues y cortes de esquina).
 - **Montaje** en 14–15 pasos (de medir la tele a la tapa), con la caja boca abajo cuando toca, pasos marcables,
   reproducción automática y tiempos orientativos (≈ 8 h de trabajo + ≈ 5 h de secados). También como
   **montaje ilustrado** imprimible (una imagen 3D por paso).
@@ -48,6 +49,8 @@ cuatro tacos encolados al marco. Quitando la base se llega a cables y tele sin t
     compuesta, asa y temperatura interior (red térmica de 2 nudos con tiro natural o ventiladores).
 - **Compartir**: un enlace con todas las medidas para abrir el mismo diseño en otro dispositivo.
 - **Variantes**: guarda versiones con nombre y compáralas con el diseño actual.
+- **Cotas editables en 3D** (largo, ancho, alto) y medidas reales de la tele en el paso 1 del montaje.
+- **Bolsillos para dados** y **ranuras para cartas** en el marco doble.
 - **Fuente de imagen**: portátil fuera (HDMI), stick o Raspberry Pi dentro (solo sale la corriente).
 - **Rejilla de calibración** (`/rejilla`): ábrela en la tele y comprueba que la casilla mide 25,4 mm.
 

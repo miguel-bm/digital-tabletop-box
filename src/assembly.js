@@ -81,7 +81,7 @@ export function planAssembly(d) {
     key: 'tv', title: 'Meter la tele', flip: true, explode: 0.3,
     done: doneTV, now: byStep('tv'),
     text: p.mount === 'vesa'
-      ? `Quita la peana. Con la caja boca abajo, mete la tele boca abajo sobre el burlete (dos personas, guantes de algodón). Atornilla cada travesaño a la tele con dos M8×${p.railH + 12} y arandela ancha (rosca VESA ${p.vesa}×${p.vesa}, no aprietes más de lo necesario), y luego sus extremos a los insertos de los tacos colgadores con M5. Si el travesaño no apoya a la vez en tele y tacos, calza con arandelas.`
+      ? `${!m.twoLayer && m.pt ? 'Primero deja el protector, limpio y sin film por la cara de la pantalla, sobre el burlete. ' : ''}Quita la peana. Con la caja boca abajo, mete la tele boca abajo sobre el ${!m.twoLayer && m.pt ? 'protector' : 'burlete'} (dos personas, guantes de algodón). Atornilla cada travesaño a la tele con dos M8×${p.railH + 12} y arandela ancha (rosca VESA ${p.vesa}×${p.vesa}, no aprietes más de lo necesario), y luego sus extremos a los insertos de los tacos colgadores con M5. Si el travesaño no apoya a la vez en tele y tacos, calza con arandelas.`
       : `Quita la peana. Con la caja boca abajo, mete la tele boca abajo sobre el burlete. Los tacos de espuma van pegados en la base: al cerrarla, la aprietan contra el marco.`,
     access: 'Antes de cerrar enciende la tele y comprueba que la imagen queda centrada en la ventana del marco.',
     hw: p.mount === 'vesa' ? ['M8 ×4 + arandelas', 'M5 ×4', 'Llave Allen'] : ['Espuma EVA'],

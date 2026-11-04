@@ -628,7 +628,7 @@ document.querySelectorAll('#mnav button').forEach(b => b.addEventListener('click
 
 // el modelo se centra en el hueco que dejan los paneles
 function updateInsets() {
-  if (mq.matches) { viewer.setInsets(0, 0, document.body.classList.contains('guiding') ? Math.max(0, $('#guide').offsetHeight - 40) : 0); return; }
+  if (mq.matches) { const bc = document.body.classList; viewer.setInsets(0, 0, bc.contains('guiding') ? Math.max(0, $('#guide').offsetHeight - 40) : bc.contains('simming') ? Math.max(0, $('#sim').offsetHeight - 40) : 0); return; }
   const L = !$('#panel-params').classList.contains('collapsed') && !document.body.classList.contains('guiding') ? 342 : 0;
   const R = document.body.classList.contains('simming') ? 424 : !$('#panel-side').classList.contains('collapsed') && !document.body.classList.contains('guiding') ? 384 : 0;
   const B = document.body.classList.contains('guiding') ? Math.max(0, $('#guide').offsetHeight - 60) : 0;

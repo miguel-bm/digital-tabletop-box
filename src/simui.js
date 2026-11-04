@@ -87,6 +87,21 @@ function plateOverlay(field, rect, y, scale) {
   return m;
 }
 
+// flechas de aire: entra por la base (azul), sale por las ranuras del fondo (rojo) y el calor de la pantalla sube (naranja)
+function airflow(d) {
+  const g = new THREE.Group(), m = d.metrics;
+  const arrow = (o, dir, len, col) => g.add(new THREE.ArrowHelper(new THREE.Vector3(...dir).normalize(), new THREE.Vector3(...o), len, col, len * 0.3, len * 0.18));
+  d.pieces.forEach(pc => (pc.solids || []).forEach(so => (so.holes || []).forEach((h, i) => {
+    if (!h.tag) return;
+    if (pc.role === 'base' && h.tag.startsWith('Ventil') && i % 3 === 0) arrow([h.circle[0], -10, h.circle[1]], [0, 1, 0], 60, 0x36aaf9);
+    if (pc.role === 'pared' && pc.key === 'back' && h.tag.startsWith('Ranura')) { const r = h.slot; arrow([(r[0] + r[2]) / 2, (r[1] + r[3]) / 2, -m.Z / 2 + 20], [0, 0.25, -1], 90, 0xf56918); }
+    if (pc.role === 'pared' && pc.key === 'back' && h.tag.startsWith('Ventilador')) arrow([h.circle[0], h.circle[1], -m.Z / 2 + 20], [0, 0, -1], 130, 0xc92903);
+    if (pc.role === 'pared' && pc.key === 'front' && h.tag.startsWith('Rejilla') && i % 3 === 0) { const r = h.slot; arrow([(r[0] + r[2]) / 2, (r[1] + r[3]) / 2, m.Z / 2 + 60], [0, 0, -1], 50, 0x36aaf9); }
+  })));
+  for (let i = -2; i <= 2; i++) for (let j = -1; j <= 1; j++) arrow([m.tv.cx + i * 180, m.yTop + 10, j * 150], [0, 1, 0], 110, 0xfbb938);
+  return g;
+}
+
 function verdict(d, cases, fem) {
   const bad = cases.filter(c => c.status === 'bad'), warn = cases.filter(c => c.status === 'warn');
   const p = d.params;
@@ -153,6 +168,7 @@ function show3D(d, viewer, cases) {
       viewer.setOverlay(plateOverlay(c.field, [cx - a / 2, cz - b / 2, cx + a / 2, cz + b / 2], y, Math.min(1, st.scale / 20)), { hideModel: false });
       return;
     }
+    if (c && c.id === 'thermal') { viewer.setOverlay(airflow(d), { hideModel: false }); return; }
     viewer.setOverlay(null);
     return;
   }
@@ -222,13 +238,14 @@ function compareTable(d) {
 function card(c) {
   const rows = c.rows.filter(r => r[0]).map(r => `<span>${r[0]}</span><b>${typeof r[1] === 'number' ? (isFinite(r[1]) ? f(r[1]) : '∞') : r[1]} <small>${r[2]}</small></b>`).join('');
   const th = c.thermal ? thermalBars(c.thermal) : '';
-  return `<div class="simcard s-${c.status} ${st.card === c.id ? 'on' : ''}" ${c.field ? `data-card="${c.id}"` : ''}>
+  const clickable = c.field || c.thermal;
+  return `<div class="simcard s-${c.status} ${st.card === c.id ? 'on' : ''}" ${clickable ? `data-card="${c.id}"` : ''}>
     <div class="sc-head">${icon(c.icon || 'info')}<strong>${c.title}</strong><em>${{ ok: 'OK', warn: 'Ojo', bad: 'Mal' }[c.status]}</em></div>
     ${c.load ? `<div class="sc-load">${c.load}</div>` : ''}
     ${rows ? `<div class="sc-rows">${rows}</div>` : ''}
     ${th}
     <p>${c.text}</p>
-    ${c.model ? `<small>${c.model}${c.field ? ' · <u>clic para verlo en 3D</u>' : ''}</small>` : ''}
+    ${c.model ? `<small>${c.model}${clickable ? ' · <u>clic para verlo en 3D</u>' : ''}</small>` : ''}
   </div>`;
 }
 

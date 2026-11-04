@@ -301,6 +301,14 @@ export class Viewer {
     const d6 = new THREE.Mesh(new RoundedBoxGeometry(16, 16, 16, 2, 2.5), new THREE.MeshStandardMaterial({ color: 0xe9e4d8, roughness: 0.4 }));
     d6.position.set(m.tv.cx + 285, top + 8, 165); d6.rotation.y = 0.5; d6.castShadow = true;
     g.add(d20, d6);
+    // cartas de pie en las ranuras
+    (m.cardSlots || []).forEach((r, i) => {
+      for (let k = 0; k < 3; k++) {
+        const card = new THREE.Mesh(new THREE.BoxGeometry(63, 88, 0.8), new THREE.MeshStandardMaterial({ color: [0xf3eee2, 0x7a2e2e, 0x2e4f7a][(i + k) % 3], roughness: 0.6 }));
+        card.position.set((r[0] + r[2]) / 2 - 75 + k * 75, m.yF + d.params.t + 44 - 8, (r[1] + r[3]) / 2);
+        card.rotation.x = -0.12; card.castShadow = true; g.add(card);
+      }
+    });
     // dados en los bolsillos del marco
     (m.pockets || []).forEach((r, i) => {
       const y = m.yF + d.params.t;

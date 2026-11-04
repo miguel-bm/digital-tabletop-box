@@ -218,15 +218,21 @@ export function buildDesign(p) {
       hw.push({ g: 'Acabado', name: 'Fieltro adhesivo para el fondo de los bolsillos', qty: 1, unit: 3 });
     } else warn('warn', `Los bolsillos para dados necesitan un marco más ancho: el listón lateral del pozo mide ${r1(ring2)} mm (hacen falta ≥ 48). Sube el margen interior.`);
   }
+  let cardHoles = [];
+  if (p.cardSlots && twoLayer) {
+    const zc = (op2[3] + zo1) / 2, wF = zo1 - op2[3];
+    if (wF >= 16) cardHoles = [-1, 1].map(s => ({ rect: [s * 280 - 130, zc - 2, s * 280 + 130, zc + 2], tag: 'Ranura cartas 260×4' }));
+    else warn('warn', 'No caben ranuras para cartas: el listón frontal del pozo es demasiado estrecho.');
+  } else if (p.cardSlots) warn('info', 'Las ranuras para cartas solo existen con el marco doble.');
   if (twoLayer && !p.frame2Split) {
     add({ id: 'F2', key: 'frame2', name: 'Marco · capa superior (pozo)', role: 'marco', mat: frameMat, step: 'marco2',
-      solids: [{ plane: 'XZ', rect: outerRect, t: [yF + t, yF + 2 * t], holes: [{ rect: op2 }, ...irF2, ...pocketHoles] }], explode: [0, 280, 0] });
+      solids: [{ plane: 'XZ', rect: outerRect, t: [yF + t, yF + 2 * t], holes: [{ rect: op2 }, ...irF2, ...pocketHoles, ...cardHoles] }], explode: [0, 280, 0] });
   } else if (twoLayer) {
     // 4 listones: los largos de punta a punta, los cortos entre ellos (juntas desfasadas respecto a la capa 1)
     const yy = [yF + t, yF + 2 * t];
     const strips = [
       ['F2', 'Marco · pozo, listón del fondo', [xo0, zo0, xo1, op2[1]], irF2.filter(h => h.circle[1] < op2[1])],
-      ['F3', 'Marco · pozo, listón frontal', [xo0, op2[3], xo1, zo1], irF2.filter(h => h.circle[1] > op2[3])],
+      ['F3', 'Marco · pozo, listón frontal', [xo0, op2[3], xo1, zo1], [...irF2.filter(h => h.circle[1] > op2[3]), ...cardHoles]],
       ['F4', 'Marco · pozo, listón izquierdo', [xo0, op2[1], op2[0], op2[3]], pocketHoles.slice(0, 1)],
       ['F5', 'Marco · pozo, listón derecho', [op2[2], op2[1], xo1, op2[3]], pocketHoles.slice(1, 2)],
     ];
@@ -570,7 +576,7 @@ export function buildDesign(p) {
     X, Z, H, outer, innerX, innerZ, wallH, g, gL, gR, ring1, ring2, y0, yBaseTop, yB, yS, yF, yTop, yRim,
     mass, coverArea: coverAreaReal, op1, op2, protRect, tv, scr, bezelTop, bezelSide, vol,
     pxPerMm: px, inchPx: 25.4 * px, gridCells: [Math.floor(p.screenW / 25.4), Math.floor(p.screenH / 25.4)],
-    railX, vz, screwPts, twoLayer, pt, ct, cy, cz, portWall, pockets: pocketHoles.map(h => h.rect),
+    railX, vz, screwPts, twoLayer, pt, ct, cy, cz, portWall, pockets: pocketHoles.map(h => h.rect), cardSlots: cardHoles.map(h => h.rect),
   };
 
   // cotas para la escena y los planos

@@ -16,7 +16,7 @@ export function boardsDXF(d) {
   boards.forEach((b, k) => {
     const oy = k * (BOARD.H + 200);
     poly([[0, oy], [BOARD.W, oy], [BOARD.W, oy + BOARD.H], [0, oy + BOARD.H]], 'TABLERO');
-    text(0, oy + BOARD.H + 40, 30, `Tablero ${k + 1} · ${BOARD.W}x${BOARD.H}x${d.params.t}`);
+    text(0, oy + BOARD.H + 40, 30, `Tablero ${k + 1} · ${BOARD.W}x${BOARD.H}x${b.T}`);
     b.parts.forEach(pt => {
       const pc = d.pieces.find(q => q.id === pt.id);
       const so = pc.solids.reduce((a, s) => ((s.rect[2] - s.rect[0]) * (s.rect[3] - s.rect[1]) >= (a.rect[2] - a.rect[0]) * (a.rect[3] - a.rect[1]) ? s : a), pc.solids[0]);

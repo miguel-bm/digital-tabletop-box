@@ -471,16 +471,16 @@ export function buildDesign(p) {
   }
 
   if (p.lid) {
-    const lc = 1.5 + (p.corners ? 2 : 0), lt = t, sk = p.lidSkirt;
-    const L0 = [-outer.X / 2 - lc - t, -outer.Z / 2 - lc - t, outer.X / 2 + lc + t, outer.Z / 2 + lc + t];
+    const lt = Number(p.lidT) || t, lc = 1.5 + (p.corners ? 2 : 0), sk = p.lidSkirt;
+    const L0 = [-outer.X / 2 - lc - lt, -outer.Z / 2 - lc - lt, outer.X / 2 + lc + lt, outer.Z / 2 + lc + lt];
     const ly = y0 + outer.H + 11;   // 10 mm de espuma bajo el panel
     const [sx0, sz0, sx1, sz1] = L0;
     const lid = (id, key, name, solid) => add({ id, key, name, role: 'tapa', mat: 'cover', step: 'tapa', lid: true, solids: [solid], explode: [0, 160, 0] });
     lid('T1', 'lidTop', 'Tapa · panel', { plane: 'XZ', rect: L0, t: [ly, ly + lt] });
-    lid('T2', 'lidB', 'Tapa · faldón largo fondo', { plane: 'XY', rect: [sx0, ly - sk, sx1, ly], t: [sz0, sz0 + t] });
-    lid('T3', 'lidF', 'Tapa · faldón largo frente', { plane: 'XY', rect: [sx0, ly - sk, sx1, ly], t: [sz1 - t, sz1] });
-    lid('T4', 'lidL', 'Tapa · faldón corto izq.', { plane: 'YZ', rect: [sz0 + t, ly - sk, sz1 - t, ly], t: [sx0, sx0 + t] });
-    lid('T5', 'lidR', 'Tapa · faldón corto der.', { plane: 'YZ', rect: [sz0 + t, ly - sk, sz1 - t, ly], t: [sx1 - t, sx1] });
+    lid('T2', 'lidB', 'Tapa · faldón largo fondo', { plane: 'XY', rect: [sx0, ly - sk, sx1, ly], t: [sz0, sz0 + lt] });
+    lid('T3', 'lidF', 'Tapa · faldón largo frente', { plane: 'XY', rect: [sx0, ly - sk, sx1, ly], t: [sz1 - lt, sz1] });
+    lid('T4', 'lidL', 'Tapa · faldón corto izq.', { plane: 'YZ', rect: [sz0 + lt, ly - sk, sz1 - lt, ly], t: [sx0, sx0 + lt] });
+    lid('T5', 'lidR', 'Tapa · faldón corto der.', { plane: 'YZ', rect: [sz0 + lt, ly - sk, sz1 - lt, ly], t: [sx1 - lt, sx1] });
     const nl = Number(p.latches);
     const latchPts = [];
     if (nl === 2 && p.handle !== 'laterales') [-1, 1].forEach(s => latchPts.push({ pos: [s * sx1, ly - sk, 0], axis: 'x', s }));

@@ -305,7 +305,7 @@ function renderCut() {
   });
   h += '</tbody></table>';
   const u = boardUsage(design);
-  h += `<div class="tot"><span>Tableros 2440×1220 de ${params.t} mm</span><span>${u.boards}</span><span>${Math.round(u.area * 100) / 100} m²</span><span>Listón ${params.battenW}×${params.battenH} y tacos</span><span>${f1(u.battenM)} m</span><span></span></div>`;
+  h += `<div class="tot"><span>Tableros 2440×1220</span><span>${Object.entries(u.byT).map(([T, n]) => n + ' × ' + String(T).replace('.', ',') + ' mm').join(' + ')}</span><span>${Math.round(u.area * 100) / 100} m²</span><span>Listón ${params.battenW}×${params.battenH} y tacos</span><span>${f1(u.battenM)} m</span><span></span></div>`;
   h += `<div class="btnrow"><button id="csv-btn">Descargar CSV</button><button id="plans-btn2">Ver plano de corte</button></div>`;
   host.innerHTML = h;
   $('#csv-btn').onclick = () => download('despiece.csv', cutListCSV(design), 'text/csv');

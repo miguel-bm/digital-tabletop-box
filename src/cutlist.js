@@ -40,41 +40,46 @@ export function cutListCSV(d) {
   return lines.join('\n');
 }
 
-// Optimización de corte en tableros (guillotina por franjas, giro permitido).
+// Optimización de corte en tableros (guillotina por franjas, giro permitido), un juego por grosor.
 export function packBoards(d) {
-  const parts = [];
+  const byT = new Map();
   d.pieces.forEach(pc => {
     if (pc.role === 'tv' || pc.skin || pc.role === 'burlete') return;
     const c = pieceCut(pc);
     if ((c.stock || 'tablero') !== 'tablero') return;
-    parts.push({ id: pc.id, name: pc.name, w: c.L, h: c.W, frame: pc.role === 'marco' || pc.role === 'tapa' && pc.key === 'lidTop' });
+    const T = Math.round(c.T * 10) / 10;
+    if (!byT.has(T)) byT.set(T, []);
+    byT.get(T).push({ id: pc.id, name: pc.name, w: c.L, h: c.W, frame: pc.role === 'marco' || pc.role === 'tapa' && pc.key === 'lidTop' });
   });
   const { W, H, kerf, edge } = BOARD;
   const boards = [];
-  parts.sort((a, b) => b.h - a.h || b.w - a.w);
-  const newBoard = () => { const b = { strips: [], used: edge, parts: [] }; boards.push(b); return b; };
-  for (const pt of parts) {
-    let w = pt.w, h = pt.h;
-    if (w > W - 2 * edge && h <= W - 2 * edge) [w, h] = [h, w];
-    let placed = false;
-    for (const b of boards) {
-      for (const s of b.strips) {
-        if (h <= s.h && s.x + w <= W - edge) { b.parts.push({ ...pt, x: s.x, y: s.y, w, h }); s.x += w + kerf; placed = true; break; }
+  [...byT.entries()].sort((a, b) => b[0] - a[0]).forEach(([T, parts]) => {
+    const mine = [];
+    parts.sort((a, b) => b.h - a.h || b.w - a.w);
+    const newBoard = () => { const b = { strips: [], used: edge, parts: [], T }; mine.push(b); boards.push(b); return b; };
+    for (const pt of parts) {
+      let w = pt.w, h = pt.h;
+      if (w > W - 2 * edge && h <= W - 2 * edge) [w, h] = [h, w];
+      let placed = false;
+      for (const b of mine) {
+        for (const s of b.strips) {
+          if (h <= s.h && s.x + w <= W - edge) { b.parts.push({ ...pt, x: s.x, y: s.y, w, h }); s.x += w + kerf; placed = true; break; }
+        }
+        if (placed) break;
+        if (b.used + h <= H - edge) {
+          const s = { y: b.used, h, x: edge };
+          b.strips.push(s); b.used += h + kerf;
+          b.parts.push({ ...pt, x: s.x, y: s.y, w, h }); s.x += w + kerf; placed = true; break;
+        }
       }
-      if (placed) break;
-      if (b.used + h <= H - edge) {
+      if (!placed) {
+        const b = newBoard();
         const s = { y: b.used, h, x: edge };
         b.strips.push(s); b.used += h + kerf;
-        b.parts.push({ ...pt, x: s.x, y: s.y, w, h }); s.x += w + kerf; placed = true; break;
+        b.parts.push({ ...pt, x: s.x, y: s.y, w, h }); s.x += w + kerf;
       }
     }
-    if (!placed) {
-      const b = newBoard();
-      const s = { y: b.used, h, x: edge };
-      b.strips.push(s); b.used += h + kerf;
-      b.parts.push({ ...pt, x: s.x, y: s.y, w, h }); s.x += w + kerf;
-    }
-  }
+  });
   return boards;
 }
 
@@ -87,5 +92,7 @@ export function boardUsage(d) {
     if ((c.stock || 'tablero') === 'tablero') area += c.L * c.W * 1e-6;
     if (c.stock === 'taco') battenM += (c.L + 5) / 1000;
   });
-  return { boards: boards.length, area, battenM, packed: boards };
+  const byT = {};
+  boards.forEach(b => (byT[b.T] = (byT[b.T] || 0) + 1));
+  return { boards: boards.length, byT, area, battenM, packed: boards };
 }

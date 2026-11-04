@@ -280,7 +280,7 @@ function sheetCorte(d, n, total) {
   const s = Math.min((W - 52) / 2 / BOARD.W, 120 / BOARD.H);
   boards.slice(0, 2).forEach((bd, k) => {
     const ox = 20 + k * (BOARD.W * s + 12), oy = 30;
-    b += text(ox, oy - 2, `Tablero ${k + 1}`, 3, 'font-weight="600"');
+    b += text(ox, oy - 2, `Tablero ${k + 1} · ${String(bd.T).replace('.', ',')} mm`, 3, 'font-weight="600"');
     b += rect(ox, oy, ox + BOARD.W * s, oy + BOARD.H * s, `fill="#efe7da" stroke="${INK}" stroke-width=".4"`);
     let used = 0;
     bd.parts.forEach(pt => {

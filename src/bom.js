@@ -8,7 +8,7 @@ export function buildBOM(d) {
   const p = d.params;
   const u = boardUsage(d);
   const items = [];
-  items.push({ g: 'Material', name: `Tablero contrachapado ${p.t} mm (2440×1220)`, qty: u.boards, unit: p.plyType === 'abedul' ? 75 : 45, own: true });
+  Object.entries(u.byT).sort((a, c) => c[0] - a[0]).forEach(([T, n]) => items.push({ g: 'Material', name: `Tablero contrachapado ${String(T).replace('.', ',')} mm (2440×1220)`, qty: n, unit: Math.round((p.plyType === 'abedul' ? 7.5 : 4.5) * T), own: Number(T) === p.t }));
   // listones y tacos por sección
   const bySec = {};
   d.pieces.forEach(pc => { if (!pc.cut || pc.cut.stock !== 'taco') return; const a = Math.min(pc.cut.W, pc.cut.T), c2 = Math.max(pc.cut.W, pc.cut.T); const k = `${Math.round(a)}×${Math.round(c2)}`; bySec[k] = (bySec[k] || 0) + (pc.cut.L + 5) / 1000; });

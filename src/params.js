@@ -31,7 +31,7 @@ export const DEFAULTS = {
 
   // ── transporte ──
   handle: 'maleta', corners: true, standFeet: true,
-  lid: false, lidSkirt: 30, latches: 2,
+  lid: false, lidT: 6, lidSkirt: 30, latches: 2,
 
   // ── acabado ──
   cover: 'tolex', coverColor: '#232325', frameFinish: 'negro', frameColor: '#1d1d1f', coverT: 1.2,
@@ -133,6 +133,7 @@ export const SCHEMA = [
     { k: 'corners', l: 'Cantoneras metálicas', type: 'bool' },
     { k: 'standFeet', l: 'Topes para dejarla de pie', type: 'bool' },
     { k: 'lid', l: 'Tapa de transporte', type: 'bool' },
+    { k: 'lidT', l: 'Tapa · grosor del tablero', type: 'select', opts: { 4: '4 mm (muy ligera)', 6: '6 mm', 10: '10 mm (el mismo de la caja)' } },
     { k: 'lidSkirt', l: 'Tapa · alto del faldón', u: 'mm', min: 15, max: 80, step: 1 },
     { k: 'latches', l: 'Cierres de palanca', type: 'select', opts: { 2: '2', 4: '4' } },
   ] },

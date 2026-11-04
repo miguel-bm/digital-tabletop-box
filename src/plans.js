@@ -220,6 +220,8 @@ function pieceCard(d, pc, row, x, y, w, h) {
   b += text(x + 3, y + 6, pc.id, 4.6, `font-weight="700" fill="${ACC}"`);
   b += text(x + 3 + pc.id.length * 3 + 3, y + 6, row.qty > 1 ? `${row.name} · ×${row.qty} (${row.ids.join(' ')})` : pc.name, 3.1, 'font-weight="600"');
   b += text(x + 3, y + 10.5, `${f1(c.L)} × ${f1(c.W)} × ${f1(c.T)} mm · ${row.stockLabel}`, 2.6, `fill="${MUTED}" font-family="JetBrains Mono, monospace"`);
+  const viewNote = { XZ: 'vista desde arriba · el canto del jugador abajo', XY: 'vista desde el lado del jugador', YZ: 'vista desde la izquierda · el jugador a la derecha' }[pc.solids[0].plane] || '';
+  b += text(x + w - 3, y + 6, viewNote, 2.2, `text-anchor="end" fill="${MUTED}"`);
   // sólido principal (el de mayor área)
   const so = pc.solids.reduce((a, s) => ((s.rect[2] - s.rect[0]) * (s.rect[3] - s.rect[1]) >= (a.rect[2] - a.rect[0]) * (a.rect[3] - a.rect[1]) ? s : a), pc.solids[0]);
   const [u0, v0, u1, v1] = so.rect;
@@ -229,7 +231,8 @@ function pieceCard(d, pc, row, x, y, w, h) {
   const sc = Math.min(aw / (rot ? ph : pw), ah / (rot ? pw : ph));
   const cx = x + 11 + aw / 2, cy = y + 16 + ah / 2;
   const X = (u, v) => rot ? cx + (v - (v0 + v1) / 2) * sc : cx + (u - (u0 + u1) / 2) * sc;
-  const Y = (u, v) => rot ? cy + (u - (u0 + u1) / 2) * sc : cy - (v - (v0 + v1) / 2) * sc;
+  const vs = so.plane === 'XZ' ? 1 : -1;   // XZ: visto desde arriba (z hacia abajo); XY y YZ: alzado (y hacia arriba)
+  const Y = (u, v) => rot ? cy + (u - (u0 + u1) / 2) * sc : cy + vs * (v - (v0 + v1) / 2) * sc;
   const mapLoop = l => 'M' + l.map(([u, v]) => `${X(u, v)},${Y(u, v)}`).join('L') + 'Z';
   const regs = rectMinusRects(so.rect, so.notches || []);
   regs.forEach(reg => (b += `<path d="${mapLoop(reg.outer)} ${reg.holes.map(mapLoop).join(' ')}" fill-rule="evenodd" fill="${pc.mat === 'batten' ? '#f4e6cf' : '#f6f1e8'}" stroke="${INK}" stroke-width=".4"/>`));
@@ -246,7 +249,7 @@ function pieceCard(d, pc, row, x, y, w, h) {
   // tabla de huecos (coordenadas desde la esquina inferior izquierda del dibujo)
   const hl = (so.holes || []).filter(hh => hh.tag || hh.circle && hh.circle[2] > 2);
   const uniq = [];
-  hl.forEach(hh => { const k = hh.tag || 'Taladro'; const e = uniq.find(q => q.k === k); const pos = hh.circle ? [hh.circle[0], hh.circle[1]] : [((hh.slot || hh.rect)[0] + (hh.slot || hh.rect)[2]) / 2, ((hh.slot || hh.rect)[1] + (hh.slot || hh.rect)[3]) / 2]; const rel = rot ? [pos[1] - v0, u1 - pos[0]] : [pos[0] - u0, pos[1] - v0]; if (e) e.p.push(rel); else uniq.push({ k, p: [rel] }); });
+  hl.forEach(hh => { const k = hh.tag || 'Taladro'; const e = uniq.find(q => q.k === k); const pos = hh.circle ? [hh.circle[0], hh.circle[1]] : [((hh.slot || hh.rect)[0] + (hh.slot || hh.rect)[2]) / 2, ((hh.slot || hh.rect)[1] + (hh.slot || hh.rect)[3]) / 2]; const rel = rot ? [pos[1] - v0, u1 - pos[0]] : [pos[0] - u0, vs < 0 ? pos[1] - v0 : v1 - pos[1]]; if (e) e.p.push(rel); else uniq.push({ k, p: [rel] }); });
   const lines = uniq.slice(0, 3).map(q => `${q.p.length}× ${q.k}${q.p.length <= 4 ? ' @ ' + q.p.map(([a, bb]) => `(${f1(a)}; ${f1(bb)})`).join(' ') : ''}`);
   if (pc.cut && pc.cut.notes) lines.unshift(pc.cut.notes);
   lines.slice(0, 3).forEach((t, i) => (b += text(x + 3, y + h - 9.5 + i * 3.4, t.length > 120 ? t.slice(0, 118) + '…' : t, 2.25, `fill="${MUTED}"`)));

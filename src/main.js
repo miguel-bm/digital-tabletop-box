@@ -530,6 +530,19 @@ function showStep(i, fly = true) {
   $('#guide-access').innerHTML = (st.access ? `<b>Ojo</b>${st.access}` : '') + `<span class="gtime">⏱ ${fmtMin(st.min)}${st.dry ? ` + ${fmtMin(st.dry)} de secado` : ''} · total ≈ ${fmtMin(total)} de trabajo, quedan ${fmtMin(left)}</span>`;
   const parts = st.now.map(id => design.pieces.find(p => p.id === id)).filter(Boolean);
   $('#guide-parts').innerHTML = parts.map(p => `<span class="gp"><b>${p.id}</b> ${p.name}</span>`).join('') + (st.hw || []).map(h => `<span class="gp hw">${h}</span>`).join('');
+  if (st.key === 'medir') {
+    const keys = ['tvRimD', 'tvD', 'bumpW', 'bumpH', 'bumpDz', 'vesaDx', 'vesaDz', 'bezelBottom', 'irDx'];
+    const form = el('div', { className: 'measure' });
+    keys.forEach(k => {
+      const pd = PARAM_INDEX[k];
+      const lab = el('label', {}, `<span>${pd.l.replace(' · medir', '')}</span>`);
+      const inp = el('input', { value: params[k], inputMode: 'decimal' });
+      inp.addEventListener('change', () => { const v = Number(String(inp.value).replace(',', '.')); if (isFinite(v)) commit({ ...params, [k]: Math.max(pd.min, Math.min(pd.max, v)) }); });
+      lab.append(inp, el('em', {}, pd.u));
+      form.append(lab);
+    });
+    $('#guide-parts').append(form);
+  }
   $('#guide-done').checked = !!doneSteps[st.key];
   $('#guide-chapters').innerHTML = guide.steps.map((s, k) => `<button data-k="${k}" class="${k === i ? 'on' : ''} ${doneSteps[s.key] ? 'done' : ''}"><b>${doneSteps[s.key] ? '✓' : k + 1}</b>${s.title.split(':')[0]}</button>`).join('');
   $('#guide-chapters').querySelectorAll('button').forEach(b => b.addEventListener('click', () => showStep(Number(b.dataset.k))));

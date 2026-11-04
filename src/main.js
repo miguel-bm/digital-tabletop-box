@@ -194,6 +194,24 @@ function renderPresets() {
   });
 }
 
+// variantes guardadas en este navegador
+let saved = [];
+try { saved = JSON.parse(localStorage.getItem('tabletop.saved') || '[]'); } catch { saved = []; }
+function renderSaved() {
+  const host = $('#saved');
+  const persist = () => { try { localStorage.setItem('tabletop.saved', JSON.stringify(saved)); } catch { /* nada */ } };
+  host.innerHTML = `<div class="saverow"><input id="save-name" placeholder="nombre de la variante…" maxlength="40"/><button id="save-btn" class="btn-sm">Guardar</button></div>` +
+    (saved.length ? `<div class="savelist">${saved.map((s, i) => `<div class="sv"><button data-load="${i}" title="Cargar"><b>${s.name.replace(/</g, '&lt;')}</b><small>${s.summary || ''}</small></button><button data-del="${i}" class="x" title="Borrar">✕</button></div>`).join('')}</div>` : '<p class="note">Guarda aquí versiones para compararlas (p. ej. «con tapa» / «sin tapa»).</p>');
+  $('#save-btn').onclick = () => {
+    const name = $('#save-name').value.trim() || 'Variante ' + (saved.length + 1);
+    const m = design.metrics;
+    saved.unshift({ name, params: { ...params }, summary: `${Math.round(m.outer.X)}×${Math.round(m.outer.Z)}×${Math.round(m.outer.H + m.y0)} · ${f1(m.mass.total)} kg`, date: Date.now() });
+    saved = saved.slice(0, 20); persist(); renderSaved(); toast(`Guardado «${name}»`);
+  };
+  host.querySelectorAll('[data-load]').forEach(b => b.onclick = () => { const s = saved[Number(b.dataset.load)]; commit(sanitize(s.params)); toast(`Cargado «${s.name}»`); });
+  host.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { saved.splice(Number(b.dataset.del), 1); persist(); renderSaved(); });
+}
+
 // ───────── panel derecho ─────────
 function selectTab(t, open = true) {
   ui.tab = t; save();
@@ -643,6 +661,7 @@ new MutationObserver(updateInsets).observe(document.body, { attributes: true, at
 decorate();
 setupTips();
 renderPresets();
+renderSaved();
 renderDock();
 selectTab(ui.tab, false);
 design = buildDesign(params);

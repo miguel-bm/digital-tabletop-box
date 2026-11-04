@@ -387,6 +387,8 @@ function renderData() {
     </dl>
     <div class="h-sub">Peso · ${f1(M.total)} kg</div>
     ${bar([{ l: 'Tele', v: M.tv, c: '#5ad1e6' }, { l: 'Tablero', v: M.ply, c: '#e7d3b4' }, { l: 'Listón', v: M.batten, c: '#c99b62' }, { l: 'Protector', v: M.protector, c: '#a9c7e0' }, { l: 'Forro', v: M.cover, c: '#8a919b' }, { l: 'Herrajes', v: M.hw, c: '#ffb020' }].filter(x => x.v > 0.01))}
+    <div class="h-sub">Ficha de la tele</div>
+    <p class="note">Samsung UE43M5575AU (serie M5500, 2017): 972,9 × 570 × 55,1 mm sin peana, 9,5 kg, VESA 200 × 200 (M8), Full HD 1920 × 1080, 54 W típicos, 3 HDMI, 2 USB, altavoces 2 × 10 W hacia abajo. Fuente: <a href="https://tvsfaq.com/en/specifications/samsung-ue43m5575au" target="_blank" rel="noopener">tvsfaq.com</a>. El fondo del borde, la joroba trasera, la posición VESA y la del receptor IR son estimaciones: mídelas (paso 1 del montaje).</p>
     <div class="h-sub">Pantalla para jugar</div>
     <dl class="facts">
       <dt>Área visible</dt><dd>${f1(p.screenW)} × ${f1(p.screenH)} mm</dd>

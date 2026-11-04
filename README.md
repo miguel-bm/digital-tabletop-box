@@ -15,12 +15,13 @@ npm test         # barrido de todas las opciones + comprobación de solapes
 
 ## El diseño en una frase
 
-Un cajón de contrachapado con las cuatro paredes, cuatro **postes de esquina** y un marco de una capa
-**encolados**, y una **base atornillada** que es la tapa de servicio. La tele se **atornilla a la base por
-sus 4 roscas VESA** a través de dos **costillas de punta a punta** encoladas a la base; unas patas
-centrales bajo esas costillas llevan su peso directo a la mesa. Los listones del perímetro van enteros
-y el protector de metacrilato cubre toda la caja, atornillado a los postes. Todo se monta boca abajo:
-la tele entra por detrás y apoya la pantalla en un burlete bajo el marco.
+Un cajón de contrachapado: cuatro paredes y un marco de una capa **encolados**, y una **bandeja
+extraíble** (la base con cuatro tacos de apoyo encolados en su perímetro). La tele entra **justa entre
+las paredes** y apoya su borde fino sobre los tacos (con un burlete), así que su peso baja directo a la
+base; el marco solo tapa el bisel. Además se **atornilla a la base por sus 4 roscas VESA** a través de
+dos costillas de punta a punta, que la sujetan contra el burlete. La bandeja se atornilla por los
+costados (M5 a insertos en los tacos) y es la tapa de servicio: todo se monta boca abajo y, al
+sacarla, se llega a cables y tele sin tocar nada más. El protector de metacrilato cubre toda la caja.
 
 ## Qué hay en la app
 
@@ -60,9 +61,9 @@ la tele entra por detrás y apoya la pantalla en un burlete bajo el marco.
 ## Conclusiones de los cálculos (diseño por defecto)
 
 - **Resistencia**: de sobra. La tensión máxima en el contrachapado es ~2 MPa (rotura ~60 MPa).
-- **Rigidez**: el punto débil es la **torsión**. En una mesa coja la esquina sin apoyo baja ~5 mm
-  (antes, con la tele colgada del marco, ~11 mm); sin la base, ~25 mm. La segunda capa de marco la
-  dejaría en ~1,8 mm a cambio de 0,8 kg más. Con menos de 8 tornillos la base deja de trabajar.
+- **Rigidez**: el punto débil es la **torsión**. En una mesa coja la esquina sin apoyo baja ~3,4 mm
+  con la bandeja (5,4 mm con la tele flotando en una cámara perimetral y atornillada a la base, ~11 mm
+  con la tele colgada del marco); sin la base, ~21 mm. Con menos de 8 tornillos la base deja de trabajar.
 - **Costillas VESA**: un golpe de 3 g al dejarla dobla la costilla ~2 mm sin contar las patas centrales
   (coef. de seguridad ~11); con las patas apoyadas, prácticamente nada.
 - **Protector**: un metacrilato de 4 mm sobre el marco (13 mm sobre la pantalla) llega a tocarla con

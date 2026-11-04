@@ -7,11 +7,11 @@ export const DEFAULTS = {
   screenW: 951.8, screenH: 535.4, bezelBottom: 20,
   bumpW: 760, bumpH: 300, bumpDz: 70,
   vesa: 200, vesaDx: 0, vesaDz: 25,
-  portSide: 'derecha', irHole: true, irDx: 0,
+  tvLip: 20, portSide: 'derecha', irHole: true, irDx: 0,
 
   // ── caja ──
   t: 10, plyType: 'abedul',
-  fit: 3, margin: 20, portBay: 0,
+  fit: 2, margin: 0, portBay: 0, edgeSupport: true,
   gapBelow: 22, gasket: 3,
   joint: 'tope', battenW: 20, battenH: 20, cornerBlocks: true,
   footH: 8, feet: 6, centerFeet: true,
@@ -78,6 +78,7 @@ export const SCHEMA = [
     { k: 'bumpW', l: 'Trasera: zona de fondo máximo · ancho · medir', u: 'mm', min: 100, max: 1400, step: 1 },
     { k: 'bumpH', l: 'Trasera: zona de fondo máximo · alto · medir', u: 'mm', min: 100, max: 800, step: 1 },
     { k: 'bumpDz', l: 'Trasera: esa zona, desplazada hacia abajo · medir', u: 'mm', min: -200, max: 200, step: 1 },
+    { k: 'tvLip', l: 'Trasera: borde plano antes de la curva · medir', u: 'mm', min: 4, max: 80, step: 1 },
     { k: 'vesa', l: 'Patrón VESA', u: 'mm', min: 75, max: 400, step: 25 },
     { k: 'vesaDx', l: 'VESA · desvío lateral · medir', u: 'mm', min: -200, max: 200, step: 1 },
     { k: 'vesaDz', l: 'VESA · desvío hacia abajo · medir', u: 'mm', min: -200, max: 200, step: 1 },
@@ -89,13 +90,14 @@ export const SCHEMA = [
     { k: 't', l: 'Grosor del contrachapado', u: 'mm', min: 6, max: 18, step: 1 },
     { k: 'plyType', l: 'Tipo de contrachapado', type: 'select', opts: Object.fromEntries(Object.entries(PLY).map(([k, v]) => [k, v.label])) },
     { k: 'fit', l: 'Holgura tele ↔ caja', u: 'mm', min: 0, max: 15, step: 0.5 },
+    { k: 'edgeSupport', l: 'Tele pegada a las paredes, apoyada en tacos de la base (bandeja)', type: 'bool' },
     { k: 'margin', l: 'Margen interior (cámara perimetral)', u: 'mm', min: 0, max: 120, step: 1 },
     { k: 'portBay', l: 'Bahía extra en el lado de conexiones', u: 'mm', min: 0, max: 200, step: 1 },
     { k: 'gapBelow', l: 'Hueco bajo la tele (alto de las costillas)', u: 'mm', min: 5, max: 80, step: 1 },
     { k: 'gasket', l: 'Burlete bajo el marco', u: 'mm', min: 0, max: 10, step: 0.5 },
     { k: 'joint', l: 'Unión de esquinas', type: 'select', opts: { tope: 'A tope + taco interior', rebaje: 'Rebaje (galce) + taco', dedos: 'Dedos (finger joint, CNC o sierra)' } },
-    { k: 'battenW', l: 'Listón interior · ancho', u: 'mm', min: 10, max: 40, step: 1 },
-    { k: 'battenH', l: 'Listón interior · alto', u: 'mm', min: 10, max: 40, step: 1 },
+    { k: 'battenW', l: 'Listón / taco de apoyo · ancho', u: 'mm', min: 10, max: 40, step: 1 },
+    { k: 'battenH', l: 'Listón interior · alto (sin bandeja)', u: 'mm', min: 10, max: 40, step: 1 },
     { k: 'cornerBlocks', l: 'Postes de esquina (apoyo del marco y del protector)', type: 'bool' },
     { k: 'footH', l: 'Altura de patas de goma', u: 'mm', min: 0, max: 30, step: 1 },
     { k: 'feet', l: 'Patas del perímetro', type: 'select', opts: { 4: '4', 6: '6', 8: '8' } },
@@ -146,9 +148,9 @@ export const PARAM_INDEX = Object.fromEntries(SCHEMA.flatMap(g => g.params.map(p
 
 // Combinaciones de partida: geometría + montaje + estética.
 export const PRESETS = [
-  { id: 'maleta', label: 'Maleta', sub: 'tolex negro, asa, cantoneras', p: { frame: 'simple', cover: 'tolex', coverColor: '#232325', frameFinish: 'negro', handle: 'maleta', corners: true, lid: false, margin: 20, protector: 'acrilico4' } },
-  { id: 'flight', label: 'Flight case', sub: 'con tapa y cierres', p: { frame: 'simple', cover: 'tolex', coverColor: '#2e2f31', frameFinish: 'negro', handle: 'maleta', corners: true, lid: true, latches: 4, margin: 20, protector: 'acrilico4' } },
-  { id: 'taberna', label: 'Taberna', sub: 'madera vista y terciopelo', p: { frame: 'rebaje', cover: 'terciopelo', coverColor: '#4a1f24', frameFinish: 'madera', handle: 'laterales', corners: false, lid: false, margin: 60, protector: 'vidrio4', pockets: true } },
-  { id: 'minimal', label: 'Mínima', sub: 'lo más fina y ligera', p: { frame: 'simple', cover: 'pintura', coverColor: '#2b2d30', frameFinish: 'negro', handle: 'ninguna', corners: false, lid: false, margin: 8, protector: 'ninguno', gapBelow: 22, cornerBlocks: true } },
-  { id: 'cuero', label: 'Biblioteca', sub: 'polipiel marrón, asa embutida', p: { frame: 'simple', cover: 'polipiel', coverColor: '#5b3a26', frameFinish: 'madera', handle: 'embutida', corners: true, lid: false, margin: 30, protector: 'acrilico5' } },
+  { id: 'maleta', label: 'Maleta', sub: 'tolex negro, asa, cantoneras', p: { frame: 'simple', cover: 'tolex', coverColor: '#232325', frameFinish: 'negro', handle: 'maleta', corners: true, lid: false, margin: 0, edgeSupport: true, protector: 'acrilico4' } },
+  { id: 'flight', label: 'Flight case', sub: 'con tapa y cierres', p: { frame: 'simple', cover: 'tolex', coverColor: '#2e2f31', frameFinish: 'negro', handle: 'maleta', corners: true, lid: true, latches: 4, margin: 0, edgeSupport: true, protector: 'acrilico4' } },
+  { id: 'taberna', label: 'Taberna', sub: 'madera vista y terciopelo', p: { frame: 'rebaje', cover: 'terciopelo', coverColor: '#4a1f24', frameFinish: 'madera', handle: 'laterales', corners: false, lid: false, margin: 60, edgeSupport: false, protector: 'vidrio4', pockets: true } },
+  { id: 'minimal', label: 'Mínima', sub: 'lo más fina y ligera', p: { frame: 'simple', cover: 'pintura', coverColor: '#2b2d30', frameFinish: 'negro', handle: 'ninguna', corners: false, lid: false, margin: 0, edgeSupport: true, protector: 'ninguno', gapBelow: 22 } },
+  { id: 'cuero', label: 'Biblioteca', sub: 'polipiel marrón, asa embutida', p: { frame: 'simple', cover: 'polipiel', coverColor: '#5b3a26', frameFinish: 'madera', handle: 'embutida', corners: true, lid: false, margin: 30, edgeSupport: false, protector: 'acrilico5' } },
 ];

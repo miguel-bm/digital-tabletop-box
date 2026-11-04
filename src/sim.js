@@ -166,7 +166,7 @@ export function runCases(d) {
       load: `Peso de la tele × 3 g = ${f(p.tvKg * 3 * G)} N en los 4 tornillos`, model: `Costilla de pino ${p.railW} × ${f(rb.h)} encolada a ${beff} mm de base, luz ${f(span)} mm entre listones${feetC ? ' (sin contar las patas centrales)' : ''}`,
       rows: [['Flecha', wmax, 'mm'], ['Tensión máxima en la costilla', s, 'MPa'], ['Coef. de seguridad (pino 40 MPa)', sf(s, 40), '×'], ['Carga por tornillo M8', P, 'N']],
       status: verdict(wmax < 2.5 && sf(s, 40) > 3, wmax < 5),
-      text: `La tele va atornillada a la base por sus 4 roscas VESA: su peso baja por las costillas ${feetC ? `y las ${feetC} patas centrales directo a la mesa (con ellas apoyadas la flecha es prácticamente cero)` : 'hasta los listones del perímetro'}. Sin patas, un golpe de 3 g dobla la costilla ${f(wmax)} mm. El marco ya no carga con la tele: solo con el protector y las manos.`,
+      text: m.edge ? `La tele apoya su borde en los tacos de la bandeja, que llevan su peso a la base y a las patas; las costillas y los 4 M8 solo la sujetan contra el burlete. Aun así, si toda la carga de un golpe de 3 g fuera a las costillas, se doblarían ${f(wmax)} mm.` : `La tele va atornillada a la base por sus 4 roscas VESA: su peso baja por las costillas ${feetC ? `y las ${feetC} patas centrales directo a la mesa (con ellas apoyadas la flecha es prácticamente cero)` : 'hasta los listones del perímetro'}. Sin patas, un golpe de 3 g dobla la costilla ${f(wmax)} mm. El marco ya no carga con la tele: solo con el protector y las manos.`,
     });
   } else if (p.mount === 'vesa') {
     const Ep = 10000, span = m.innerZ - 2 * Math.min(p.hangerW, m.g - 1) / 2;
@@ -266,10 +266,13 @@ export function femSpec(d) {
   const foamPts = p.mount === 'base' ? m.ribs.flatMap(r => m.railX.map(x => [x, r.z])) : d.pieces.filter(pc => pc.role === 'espuma').map(pc => { const r = pc.solids[0].rect; return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2]; });
   // costillas: franjas de base con el espesor equivalente a flexión (pino E 10 000 sobre contrachapado)
   const Eb = PLY[p.plyType].E * 0.62;
-  const ribs = (m.ribs || []).map(r => { const sec = composite([{ b: r.w, h: r.h, yc: p.t + r.h / 2, E: 10000 }, { b: r.w, h: p.t, yc: p.t / 2, E: Eb }]); return { z: r.z, w: r.w, x0: r.x0, x1: r.x1, tEq: Math.cbrt((12 * sec.EI) / (Eb * r.w)) }; });
+  const tEq = (w, h) => { const sec = composite([{ b: w, h, yc: p.t + h / 2, E: 10000 }, { b: w, h: p.t, yc: p.t / 2, E: Eb }]); return Math.cbrt((12 * sec.EI) / (Eb * w)); };
+  const ribs = (m.ribs || []).map(r => ({ x0: r.x0, x1: r.x1, z0: r.z - r.w / 2, z1: r.z + r.w / 2, tEq: tEq(r.w, r.h) }));
+  // bandeja: los tacos de apoyo son paredes bajas de la base, unidas a la caja solo por los tornillos
+  const tray = m.edge ? { h: m.battenTop - m.yBaseTop + p.t / 2, t: p.battenW, ys: (m.band[0] + m.band[1]) / 2 } : null;
   return {
     X: m.X, Z: m.Z, t: p.t, y0: m.y0, yF: m.yF, layers: m.twoLayer ? 2 : 1, op1: m.op1, op2: m.op2,
     screws: m.screwPts, ply: PLY[p.plyType], feet: [...fc, ...rest], hangers: hangers.length ? hangers : [[-200, -Zm], [200, -Zm], [-200, Zm], [200, Zm]],
-    handleX: p.handle === 'maleta' ? [-60, 60] : [-70, 70], handleMode: p.handle, baseOn: true, tvKg: p.tvKg, protKg: m.mass.protector + m.mass.cover, mount: p.mount, foamPts, ribs,
+    handleX: p.handle === 'maleta' ? [-60, 60] : [-70, 70], handleMode: p.handle, baseOn: true, tvKg: p.tvKg, protKg: m.mass.protector + m.mass.cover, mount: p.mount, foamPts, ribs, edge: !!m.edge, tray,
   };
 }

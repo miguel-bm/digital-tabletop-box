@@ -156,10 +156,11 @@ export function buildMesh(spec, h = 35) {
   const ribs = spec.ribs || [];
   const Xm = X / 2 - t / 2, Zm = Z / 2 - t / 2;
   const yb = y0 + t / 2, yf = yF + (layers * t) / 2;
-  const xb = [op1[0], op1[2], ...(op2 ? [op2[0], op2[2]] : []), ...hangers.map(p => p[0]), ...handleX, ...ribs.flatMap(r => [r.x0, r.x1]), ...(mount === 'base' ? (foamPts || []).map(p => p[0]) : [])];
-  const zb = [op1[1], op1[3], ...(op2 ? [op2[1], op2[3]] : []), ...ribs.flatMap(r => [r.z - r.w / 2, r.z + r.w / 2])];
+  const xb = [op1[0], op1[2], ...(op2 ? [op2[0], op2[2]] : []), ...hangers.map(p => p[0]), ...handleX, ...ribs.flatMap(r => [r.x0, r.x1]).filter(x => Math.abs(x) < Xm - 1), ...(mount === 'base' ? (foamPts || []).map(p => p[0]) : [])];
+  const zb = [op1[1], op1[3], ...(op2 ? [op2[1], op2[3]] : []), ...ribs.flatMap(r => [r.z0, r.z1]).filter(z => Math.abs(z) < Zm - 1)];
   const xs = grid(-Xm, Xm, xb, h), zs = grid(-Zm, Zm, zb, h);
-  const ys = grid(yb, yf, [(yb + yf) / 2], Math.min(h, (yf - yb) / 3));
+  const tray = spec.tray;
+  const ys = grid(yb, yf, [(yb + yf) / 2, ...(tray ? [tray.ys, yb + tray.h] : [])], Math.min(h, (yf - yb) / 3));
   const nodes = [], key = new Map();
   const node = (x, y, z, ns = '') => {
     const k = ns + x.toFixed(2) + ',' + y.toFixed(2) + ',' + z.toFixed(2);
@@ -192,8 +193,23 @@ export function buildMesh(spec, h = 35) {
   if (baseOn) {
     for (let i = 0; i < xs.length - 1; i++) for (let j = 0; j < zs.length - 1; j++) {
       const cx = (xs[i] + xs[i + 1]) / 2, cz = (zs[j] + zs[j + 1]) / 2;
-      const rib = ribs.find(r => cx > r.x0 && cx < r.x1 && Math.abs(cz - r.z) < r.w / 2);
+      const rib = ribs.find(r => cx > r.x0 && cx < r.x1 && cz > r.z0 && cz < r.z1);
       els.push({ n: [node(xs[i], yb, zs[j], 'b'), node(xs[i + 1], yb, zs[j], 'b'), node(xs[i + 1], yb, zs[j + 1], 'b'), node(xs[i], yb, zs[j + 1], 'b')], mat: plyMat(rib ? rib.tEq : t), part: rib ? 'costilla' : 'base' });
+    }
+  }
+  // tacos de la bandeja: paredes bajas de pino con los nudos de la base
+  if (baseOn && tray) {
+    const pine = { E: 9000, nu: 0.3, G12: 650, G13: 650, t: tray.t, rho: 500 };
+    const yt = ys.filter(y => y <= yb + tray.h + 0.01);
+    for (const s of [-1, 1]) {
+      for (let i = 0; i < xs.length - 1; i++) for (let k = 0; k < yt.length - 1; k++) {
+        const a = [node(xs[i], yt[k], s * Zm, 'b'), node(xs[i + 1], yt[k], s * Zm, 'b'), node(xs[i + 1], yt[k + 1], s * Zm, 'b'), node(xs[i], yt[k + 1], s * Zm, 'b')];
+        els.push({ n: s > 0 ? a : [a[1], a[0], a[3], a[2]], mat: pine, part: 'taco' });
+      }
+      for (let j = 0; j < zs.length - 1; j++) for (let k = 0; k < yt.length - 1; k++) {
+        const a = [node(s * Xm, yt[k], zs[j + 1], 'b'), node(s * Xm, yt[k], zs[j], 'b'), node(s * Xm, yt[k + 1], zs[j], 'b'), node(s * Xm, yt[k + 1], zs[j + 1], 'b')];
+        els.push({ n: s > 0 ? a : [a[1], a[0], a[3], a[2]], mat: pine, part: 'taco' });
+      }
     }
   }
   const nearest = (x, y, z, ns = '') => {
@@ -210,10 +226,11 @@ export function buildMesh(spec, h = 35) {
   if (baseOn) screws.forEach(([x, z]) => {
     const px = Math.abs(Math.abs(x) - Xm) < Math.abs(Math.abs(z) - Zm) ? Math.sign(x) * Xm : x;
     const pz = px === x ? Math.sign(z) * Zm : z;
-    const a = nearest(px, yb, pz, 'b'), b = nearest(px, yb, pz, '');
+    const ysc = tray ? tray.ys : yb;
+    const a = nearest(px, ysc, pz, 'b'), b = nearest(px, ysc, pz, '');
     springs.push({ a, b, k: 1500 });   // N/mm por tornillo (deslizamiento en madera)
   });
-  return { nodes, els, springs, key, Xm, Zm, yb, yf, nearest, feet: feet.map(([x, z]) => baseOn ? nearest(x, yb, z, 'b') : nearest(Math.sign(x) * Xm, yb, Math.sign(z) * Zm)), hangers: hangers.map(([x, z]) => nearest(x, yf, Math.sign(z) * Zm)), foamPts: (foamPts || []).map(([x, z]) => baseOn ? nearest(x, yb, z, 'b') : -1), handle: (() => { const out = []; key.forEach((idx, k) => { if (k.startsWith('b')) return; const q = nodes[idx]; if (handleMode === 'laterales') { if (Math.abs(Math.abs(q[0]) - Xm) < 0.1 && Math.abs(q[2]) <= 70 && q[1] > yb + 1 && q[1] < yf - 1) out.push(idx); return; } if (Math.abs(q[2] + Zm) < 0.1 && Math.abs(q[0]) <= Math.max(...handleX.map(Math.abs)) + 20 && q[1] > yb + 1 && q[1] < yf - 1) out.push(idx); }); return out.length ? out : handleX.map(x => nearest(x, (yb + yf) / 2, -Zm)); })(), tvKg, protKg, mount, op1 };
+  return { nodes, els, springs, key, Xm, Zm, yb, yf, nearest, feet: feet.map(([x, z]) => baseOn ? nearest(x, yb, z, 'b') : nearest(Math.sign(x) * Xm, yb, Math.sign(z) * Zm)), hangers: hangers.map(([x, z]) => nearest(x, yf, Math.sign(z) * Zm)), foamPts: (foamPts || []).map(([x, z]) => baseOn ? nearest(x, yb, z, 'b') : -1), handle: (() => { const out = []; key.forEach((idx, k) => { if (k.startsWith('b')) return; const q = nodes[idx]; if (handleMode === 'laterales') { if (Math.abs(Math.abs(q[0]) - Xm) < 0.1 && Math.abs(q[2]) <= 70 && q[1] > yb + 1 && q[1] < yf - 1) out.push(idx); return; } if (Math.abs(q[2] + Zm) < 0.1 && Math.abs(q[0]) <= Math.max(...handleX.map(Math.abs)) + 20 && q[1] > yb + 1 && q[1] < yf - 1) out.push(idx); }); return out.length ? out : handleX.map(x => nearest(x, (yb + yf) / 2, -Zm)); })(), tvKg, protKg, mount, op1, baseOn };
 }
 
 // ───────── ensamblado y solución ─────────
@@ -342,7 +359,14 @@ export function runFem(spec, caseId, h, onProgress) {
   const lc = { g: { dir: [0, -1, 0], factor: 1 }, points: [], fix: [] };
   const fixAll = n => [0, 1, 2, 3, 4, 5].forEach(c => lc.fix.push({ n, c }));
   const tvLoad = (dir, factor) => {
-    if (spec.mount === 'base' && !(mesh.foamPts.length && mesh.foamPts[0] >= 0)) { /* sin base no hay tele: va atornillada a ella */ }
+    if ((spec.mount === 'base' || spec.edge) && !mesh.baseOn) { /* sin base no hay tele: va sobre ella */ }
+    else if (spec.edge) {
+      // bandeja: la tele apoya su borde en los tacos, junto al canto de la base
+      const rim = [];
+      const ytop = Math.max(...mesh.nodes.filter((q, i) => mesh.key.get('b' + q[0].toFixed(2) + ',' + q[1].toFixed(2) + ',' + q[2].toFixed(2)) === i).map(q => q[1]));
+      mesh.key.forEach((idx, k) => { if (!k.startsWith('b')) return; const q = mesh.nodes[idx]; if (Math.abs(q[1] - ytop) < 0.1) rim.push(idx); });
+      rim.forEach(n => lc.points.push({ n, f: dir.map(v => (v * tvN * factor) / rim.length) }));
+    }
     else if ((spec.mount === 'espuma' || spec.mount === 'base') && mesh.foamPts.length && mesh.foamPts[0] >= 0) mesh.foamPts.forEach(n => lc.points.push({ n, f: dir.map(v => (v * tvN * factor) / mesh.foamPts.length) }));
     else mesh.hangers.forEach(n => lc.points.push({ n, f: dir.map(v => (v * tvN * factor) / mesh.hangers.length) }));
     // protector: reparte en el labio del marco

@@ -419,6 +419,7 @@ function renderData() {
     <table class="cut stack"><tbody>
       ${m.y0 ? `<tr><td>Patas</td><td class="n">0 → ${f1(m.y0)}</td></tr>` : ''}
       <tr><td>Base</td><td class="n">${f1(m.y0)} → ${f1(m.yBaseTop)}</td></tr>
+      ${m.edge ? `<tr><td>Tacos de apoyo (+ burlete)</td><td class="n">${f1(m.yBaseTop)} → ${f1(m.battenTop + 3)}</td></tr>` : ""}
       <tr><td>${p.mount === 'base' ? 'Costillas VESA / aire' : p.mount === 'vesa' ? 'Travesaño VESA / aire' : 'Espuma'}</td><td class="n">${f1(m.yBaseTop)} → ${f1(m.yB)}</td></tr>
       <tr><td>Tele (dorso → pantalla)</td><td class="n">${f1(m.yB)} → ${f1(m.yS)}</td></tr>
       ${!m.protAbove && m.pt ? `<tr><td>Protector</td><td class="n">${f1(m.yS)} → ${f1(m.yS + m.pt)}</td></tr>` : ''}

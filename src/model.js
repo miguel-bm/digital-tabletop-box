@@ -10,7 +10,7 @@ const r1 = v => Math.round(v * 10) / 10;
 // desplazada bumpDz hacia el canto inferior) unidas por superficies curvas, como la carcasa
 // abombada de las Samsung de la serie M. Devuelve el fondo (mm) en cada punto (x, z).
 export function tvProfile(p, tv) {
-  const lip = 8, D = p.tvD, R = Math.min(p.tvRimD, p.tvD);
+  const lip = Math.max(4, p.tvLip ?? 8), D = p.tvD, R = Math.min(p.tvRimD, p.tvD);
   const cx = (tv.x0 + tv.x1) / 2, halfW = (tv.x1 - tv.x0) / 2;
   const hx = Math.max(10, Math.min(p.bumpW / 2, halfW - lip - 20));
   const pz0 = Math.max(tv.z0 + lip + 20, p.bumpDz - p.bumpH / 2), pz1 = Math.min(tv.z1 - lip - 20, Math.max(pz0 + 10, p.bumpDz + p.bumpH / 2));
@@ -64,6 +64,13 @@ export function buildDesign(p) {
   const yTop = yF + layers * t;
   const H = yTop - y0;                      // alto de la caja (sin patas)
   const wallH = yF - y0;
+  // bandeja: la tele toca las paredes y apoya su borde fino en tacos encolados a la base
+  const edge = !!p.edgeSupport;
+  const supGk = edge ? 3 : 0;                                   // burlete de apoyo sobre los tacos
+  const battenTop = edge ? yRim - supGk : yBaseTop + p.battenH;
+  // franja de pared donde caben huecos: con bandeja, la del taco (por encima está el canto de la tele)
+  const band = edge ? [yBaseTop, battenTop] : [battenTop, yF];
+  const bandMid = (band[0] + band[1]) / 2, bandH = band[1] - band[0];
 
   // ── aberturas del marco ──
   const op1 = [scr.x0 - p.reveal, scr.z0 - p.reveal, scr.x1 + p.reveal, scr.z1 + p.reveal];
@@ -114,7 +121,7 @@ export function buildDesign(p) {
   if ((p.handle === 'maleta' || p.handle === 'embutida') && hangIn < 45) warn('warn', `El asa queda encajonada entre los tacos de los travesaños VESA (solo hay ${r1(2 * hangIn)} mm libres en el centro del fondo). Mueve el VESA o usa asas laterales.`);
 
   // salida de cables (en la pared lateral del lado de conexiones; u = z)
-  const cy = y0 + t + (wallH - t) * p.cableY;
+  const cy = edge ? band[0] + bandH * p.cableY : y0 + t + (wallH - t) * p.cableY;
   const cz = p.handle === 'laterales' ? [tv.cz - innerZ * 0.33, tv.cz + innerZ * 0.31] : [tv.cz - innerZ * 0.18, tv.cz + innerZ * 0.12];
   const cableZones = [];
   const hdmiOut = p.source === 'externa' || !p.source;
@@ -136,19 +143,18 @@ export function buildDesign(p) {
 
   // ventilación: ranuras verticales en la pared del fondo (salida, parte alta)
   const fanX = [tv.cx - innerX * 0.26, tv.cx + innerX * 0.26];
-  const battenTop = yBaseTop + p.battenH;
-  const freeH = yF - battenTop;
+  const freeH = bandH;
   if (p.fans) {
-    if (freeH < 62) warn('warn', `Los ventiladores de 60 mm no caben entre el listón inferior y el marco (hay ${r1(freeH)} mm). Sube el hueco bajo la tele o usa ventiladores de 40 mm.`);
-    const fy = battenTop + Math.max(31, freeH / 2);
+    if (freeH < 62) warn('warn', `Los ventiladores de 60 mm no caben ${edge ? 'en la altura del taco de apoyo' : 'entre el listón inferior y el marco'} (hay ${r1(freeH)} mm). Sube el hueco bajo la tele o usa ventiladores de 40 mm.`);
+    const fy = band[0] + Math.max(31, freeH / 2);
     fanX.forEach(x => {
       wallHoles.back.push({ circle: [x, fy, 28.5], tag: 'Ventilador 60 mm' });
       [[-25, -25], [25, -25], [-25, 25], [25, 25]].forEach(([dx, dy]) => wallHoles.back.push({ circle: [x + dx, fy + dy, 2] }));
     });
   }
   if (p.vents) {
-    const n = p.ventCount, sw = 8, sh = Math.max(12, Math.min(48, (yF - battenTop) - 18));
-    const span = innerX * 0.62, yv0 = yF - 8 - sh;
+    const n = p.ventCount, sw = 8, sh = Math.max(12, Math.min(48, bandH - 18));
+    const span = innerX * 0.62, yv0 = edge ? bandMid - sh / 2 : yF - 8 - sh;
     for (let i = 0; i < n; i++) {
       const x = tv.cx - span / 2 + (span * (i + 0.5)) / n;
       if (p.fans && fanX.some(f => Math.abs(f - x) < 45)) continue;
@@ -158,7 +164,7 @@ export function buildDesign(p) {
   }
   // altavoces (disparan hacia el canto inferior de la tele: pared frontal)
   if (p.speakerSlots) {
-    const ys0 = Math.max(battenTop + 4, yRim - 14), ys1 = Math.min(yF - 6, yS - 2);
+    const ys0 = edge ? band[0] + 8 : Math.max(battenTop + 4, yRim - 14), ys1 = edge ? band[1] - 8 : Math.min(yF - 6, yS - 2);
     const hh = ys1 - ys0;
     if (hh > 10) {
       const rows = Math.max(1, Math.floor(hh / 11));
@@ -172,17 +178,19 @@ export function buildDesign(p) {
   }
   // asas: la contraplaca/cazo va entre los tacos colgadores de los travesaños VESA
   if (p.handle === 'maleta') {
-    [-boltX, boltX].forEach(x => wallHoles.back.push({ circle: [x, midY(battenTop, yF), 3.2], tag: 'Taladro Ø6,5 asa' }));
+    [-boltX, boltX].forEach(x => wallHoles.back.push({ circle: [x, bandMid, 3.2], tag: 'Taladro Ø6,5 asa' }));
   } else if (p.handle === 'embutida') {
-    const hh = Math.min(56, wallH - 34);
+    const hh = Math.min(56, edge ? bandH - 8 : wallH - 34);
     const hw2 = Math.min(70, handleHalf - 6);
-    wallHoles.back.push({ rect: [-hw2, midY(battenTop, yF) - hh / 2, hw2, midY(battenTop, yF) + hh / 2], tag: 'Hueco asa embutida ' + r1(2 * hw2) + '×' + r1(hh) });
-    if (g < dishD + 2) warn('warn', `El cazo del asa embutida (${dishD} mm) choca con la tele: el margen interior es de ${r1(g)} mm. Sube el margen a ${dishD + 3} mm o usa asa de maleta.`);
+    wallHoles.back.push({ rect: [-hw2, bandMid - hh / 2, hw2, bandMid + hh / 2], tag: 'Hueco asa embutida ' + r1(2 * hw2) + '×' + r1(hh) });
+    if (edge) { if (t + p.battenW < dishD + 2) warn('warn', `El cazo del asa embutida (${dishD} mm) no cabe en pared + taco (${t + p.battenW} mm): usa tacos más anchos o asa de maleta.`); }
+    else if (g < dishD + 2) warn('warn', `El cazo del asa embutida (${dishD} mm) choca con la tele: el margen interior es de ${r1(g)} mm. Sube el margen a ${dishD + 3} mm o usa asa de maleta.`);
   } else if (p.handle === 'laterales') {
-    const hh = Math.min(50, wallH - 34);
-    ['left', 'right'].forEach(w => wallHoles[w].push({ rect: [-60, midY(battenTop, yF) - hh / 2, 60, midY(battenTop, yF) + hh / 2], tag: 'Hueco asa embutida 120×' + r1(hh) }));
+    const hh = Math.min(50, edge ? bandH - 8 : wallH - 34);
+    ['left', 'right'].forEach(w => wallHoles[w].push({ rect: [-60, bandMid - hh / 2, 60, bandMid + hh / 2], tag: 'Hueco asa embutida 120×' + r1(hh) }));
     const gs = Math.min(gL, gR);
-    if (gs < dishD + 2) warn('warn', `Las asas laterales embutidas necesitan ~${dishD + 2} mm libres a los lados de la tele; hay ${r1(gs)} mm.`);
+    if (edge) { if (t + p.battenW < dishD + 2) warn('warn', `Los cazos de las asas laterales (${dishD} mm) no caben en pared + taco (${t + p.battenW} mm).`); }
+    else if (gs < dishD + 2) warn('warn', `Las asas laterales embutidas necesitan ~${dishD + 2} mm libres a los lados de la tele; hay ${r1(gs)} mm.`);
   }
 
   // ── paredes ──
@@ -264,7 +272,7 @@ export function buildDesign(p) {
       solids: [{ plane: 'XZ', rect: r, t: yy, holes, notches: id === 'F3' && irNotch ? [irNotch] : [] }], explode: [0, 280, 0] }));
   }
   if (!p.irHole) warn('warn', 'El marco tapa el bisel inferior de la tele, donde está el receptor del mando: sin ventana IR solo podrás manejarla con la app SmartThings o por HDMI-CEC.');
-  if (ring1 < 22) warn('warn', `El marco queda muy estrecho (${r1(ring1)} mm en su lado más fino): frágil al cortar y manipular. Aumenta el margen interior.`);
+  if (ring1 < (edge ? 15 : 22)) warn('warn', `El marco queda muy estrecho (${r1(ring1)} mm en su lado más fino): frágil al cortar y manipular. Aumenta el margen interior.`);
   if (ring2 !== null && ring2 < 18) warn('warn', `La capa superior del marco queda de ${r1(ring2)} mm en su lado más fino. Aumenta el margen o reduce el apoyo del protector.`);
   if (protRect && twoLayer && (protRect[0] < xi0 + 2 || protRect[2] > xi1 - 2 || protRect[1] < zi0 + 2 || protRect[3] > zi1 - 2)) {
     // el protector apoya sobre la capa 1 por fuera de la pared interior: correcto pero lo anotamos
@@ -306,7 +314,7 @@ export function buildDesign(p) {
       let dv = 0;
       for (let k = 0; k <= 40; k++) for (const dz of [-w / 2, 0, w / 2]) dv = Math.max(dv, prof.depth(rx0 + (rx1 - rx0) * k / 40, z + dz));
       const dHole = Math.min(prof.depth(vx - p.vesa / 2, z), prof.depth(vx + p.vesa / 2, z));
-      const yTopR = yS - dv, hR = yTopR - yBaseTop;
+      const yTopR = yS - dv - (edge ? 1 : 0), hR = yTopR - yBaseTop;
       ribs.push({ z, x0: rx0, x1: rx1, w, h: hR, shim: dv - dHole });
       add({ id: 'R' + (i + 1), key: 'rib' + i, name: 'Costilla VESA ' + (i ? 'frontal' : 'del fondo'), role: 'costilla', mat: 'batten', step: 'costillas',
         solids: [{ plane: 'XZ', rect: [rx0, z - w / 2, rx1, z + w / 2], t: [yBaseTop, yTopR], holes: [-1, 1].map(s2 => ({ circle: [vx + s2 * p.vesa / 2, z, 5], tag: 'Taladro Ø10 VESA M8' })) }],
@@ -324,6 +332,7 @@ export function buildDesign(p) {
     hw.push({ g: 'TV', name: 'Varilla roscada M8 × 80 (2 guías para bajar la base, se reutilizan)', qty: 2, unit: 0.6 });
     hw.push({ g: 'TV', name: 'Arandelas M8 (calzos si la pantalla no asienta en el burlete)', qty: 8, unit: 0.05 });
   } else if (p.mount === 'vesa') {
+    if (edge) warn('error', 'Los travesaños colgados del marco no caben con la bandeja (la tele toca las paredes): usa «Atornillada a la base» o quita la bandeja.');
     if (mountGap < p.railH + 1) warn('error', `El travesaño VESA (${p.railH} mm) no cabe bajo la tele: el hueco es de ${mountGap} mm. Súbelo a ${p.railH + 2} mm.`);
     if (g - 1 < p.hangerW) warn('warn', `Los tacos colgadores se recortan a ${r1(hangerW)} mm de fondo porque el margen interior es de ${r1(g)} mm.`);
     if (hangerW < 10) warn('error', 'No hay sitio para los tacos colgadores de los travesaños: aumenta el margen interior (≥ 12 mm).');
@@ -354,7 +363,7 @@ export function buildDesign(p) {
   }
 
   // ── listones inferiores (apoyo y roscas de la base) ──
-  const bw = p.battenW, bh = p.battenH;
+  const bw = p.battenW, bh = battenTop - yBaseTop;
   const splitRanges = (a, b, gaps) => {
     let segs = [[a, b]];
     gaps.forEach(([g0, g1]) => {
@@ -364,7 +373,7 @@ export function buildDesign(p) {
   };
   let bi = 0;
   const battens = [];
-  ['back', 'front'].forEach((side) => {
+  if (!edge) ['back', 'front'].forEach((side) => {
     const z = side === 'back' ? [zi0, zi0 + bw] : [zi1 - bw, zi1];
     splitRanges(xi0, xi1, railOverlapsBatten ? railGaps : []).forEach(([a, b]) => {
       bi++;
@@ -373,7 +382,7 @@ export function buildDesign(p) {
         cut: { L: r1(b - a), W: bw, T: bh, stock: 'taco', notes: 'Encolar y atornillar desde fuera · insertos M5 para la base' }, explode: [0, -30, side === 'back' ? -120 : 120] }));
     });
   });
-  ['left', 'right'].forEach(side => {
+  if (!edge) ['left', 'right'].forEach(side => {
     const x = side === 'left' ? [xi0, xi0 + bw] : [xi1 - bw, xi1];
     const gaps = side === portWall && p.cable === 'ranura' ? cableZones : [];
     splitRanges(zi0 + bw, zi1 - bw, gaps).forEach(([a, b]) => {
@@ -386,7 +395,7 @@ export function buildDesign(p) {
 
   // tacos verticales de esquina
   const cb = Math.max(14, Math.min(30, Math.min(gL, gR, g) - 1));
-  if (p.cornerBlocks) {
+  if (p.cornerBlocks && !edge) {
     [[xi0, zi0], [xi1 - cb, zi0], [xi0, zi1 - cb], [xi1 - cb, zi1 - cb]].forEach(([x, z], i) => add({
       id: 'C' + (i + 1), key: 'corner' + i, name: 'Poste de esquina', role: 'taco', mat: 'batten', step: 'caja',
       solids: [{ plane: 'XY', rect: [x, yBaseTop + bh, x + cb, yF], t: [z, z + cb] }],
@@ -396,11 +405,11 @@ export function buildDesign(p) {
   }
 
   // refuerzo interior del asa
-  if (p.handle === 'maleta') {
+  if (p.handle === 'maleta' && !edge) {
     const d = Math.min(bw, g - 1);
     const hb = handleHalf;
     add({ id: 'A1', key: 'handleBlock', name: 'Contraplaca del asa', role: 'taco', mat: 'batten', step: 'caja',
-      solids: [{ plane: 'XY', rect: [-hb, battenTop, hb, yF], t: [zi0, zi0 + d], holes: [-boltX, boltX].map(x => ({ circle: [x, midY(battenTop, yF), 3.25], tag: 'Taladro Ø6,5 asa' })) }],
+      solids: [{ plane: 'XY', rect: [-hb, battenTop, hb, yF], t: [zi0, zi0 + d], holes: [-boltX, boltX].map(x => ({ circle: [x, bandMid, 3.25], tag: 'Taladro Ø6,5 asa' })) }],
       cut: { L: r1(2 * hb), W: r1(yF - battenTop), T: r1(d), stock: 'taco', notes: '2 taladros Ø6,5 pasantes + tuercas de garra M6' }, explode: [0, 30, -90] });
   }
 
@@ -428,7 +437,59 @@ export function buildDesign(p) {
         d -= L;
       }
     }
-    screwPts.forEach(([x, z]) => baseHoles.push({ circle: [x, z, 2.75], tag: 'Taladro Ø5,5 avellanado' }));
+    if (!edge) screwPts.forEach(([x, z]) => baseHoles.push({ circle: [x, z, 2.75], tag: 'Taladro Ø5,5 avellanado' }));
+    else {
+      // horizontales, a media altura del taco; se apartan de otros huecos de la pared
+      const sideOf = ([x, z]) => Math.abs(z - (zi0 + off)) < 0.5 ? 'back' : Math.abs(z - (zi1 - off)) < 0.5 ? 'front' : x < 0 ? 'left' : 'right';
+      const bbox = h => h.circle ? [h.circle[0] - h.circle[2], h.circle[1] - h.circle[2], h.circle[0] + h.circle[2], h.circle[1] + h.circle[2]] : (h.slot || h.rect);
+      screwPts.forEach((pt, i) => {
+        const side = sideOf(pt), long = side === 'back' || side === 'front';
+        let u = long ? pt[0] : pt[1];
+        const lo = long ? xi0 + 15 : zi0 + bw + 15, hi = long ? xi1 - 15 : zi1 - bw - 15;
+        u = Math.min(hi, Math.max(lo, u));
+        const hit = uu => wallHoles[side].some(h => { const b = bbox(h); return uu > b[0] - 9 && uu < b[2] + 9 && bandMid > b[1] - 9 && bandMid < b[3] + 9; });
+        for (let k = 1; hit(u) && k < 12; k++) u = Math.min(hi, Math.max(lo, (long ? pt[0] : pt[1]) + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 14));
+        if (long) pt[0] = u; else pt[1] = u;
+        wallHoles[side].push({ circle: [u, bandMid, 2.75], tag: 'Taladro Ø5,5 avellanado (base)', base: true });
+      });
+      // tacos de apoyo: encolados a la base, contra las paredes; los largos de punta a punta
+      const e0 = 0.5;
+      const through = (side, rect) => {
+        const holes = [], notches = [];
+        wallHoles[side].forEach(h => {
+          const b = bbox(h);
+          if (b[2] < rect[0] || b[0] > rect[2] || b[3] < rect[1] || b[1] > rect[3]) return;
+          if (h.base) holes.push({ circle: [h.circle[0], h.circle[1], 3.5], tag: 'Inserto M5 (taladro Ø7)' });
+          else if (h.tag && /Pasamuros|IEC|HDMI/.test(h.tag)) notches.push([b[0], b[1], b[2], rect[3] + 1]);   // muesca abierta arriba: la bandeja sale sin desenchufar
+          else if (h.tag && /asa/.test(h.tag) && h.circle) holes.push({ circle: [h.circle[0], h.circle[1], 4], tag: 'Inserto M6 (asa)' });
+          else holes.push(h);
+        });
+        if (side === portWall && p.cable === 'ranura') cableZones.forEach(([a, b2]) => notches.push([a, rect[1] - 1, b2, rect[3] + 1]));
+        return { holes, notches };
+      };
+      [['back', [zi0 + e0, zi0 + e0 + bw]], ['front', [zi1 - e0 - bw, zi1 - e0]]].forEach(([side, z]) => {
+        const rect = [xi0 + e0, yBaseTop, xi1 - e0, battenTop];
+        const th = through(side, rect);
+        bi++;
+        battens.push(add({ id: 'L' + bi, key: 'batten' + bi, name: 'Taco de apoyo ' + (side === 'back' ? 'fondo' : 'frente'), role: 'liston', mat: 'batten', step: 'costillas',
+          solids: [{ plane: 'XY', rect, t: z, holes: th.holes, notches: th.notches }],
+          cut: { L: r1(rect[2] - rect[0]), W: bw, T: r1(bh), stock: 'taco', notes: 'De punta a punta · encolado a la base · insertos M5 por la cara exterior' + (side === 'back' && p.handle === 'maleta' ? ' · 2 insertos M6 del asa' : '') },
+          follow: 'B1', explode: [0, -200, 0] }));
+      });
+      [['left', [xi0 + e0, xi0 + e0 + bw]], ['right', [xi1 - e0 - bw, xi1 - e0]]].forEach(([side, x]) => {
+        const rect = [zi0 + e0 + bw, yBaseTop, zi1 - e0 - bw, battenTop];
+        const th = through(side, rect);
+        bi++;
+        battens.push(add({ id: 'L' + bi, key: 'batten' + bi, name: 'Taco de apoyo ' + (side === 'left' ? 'izq.' : 'der.'), role: 'liston', mat: 'batten', step: 'costillas',
+          solids: [{ plane: 'YZ', rect, t: x, holes: th.holes, notches: th.notches }],
+          cut: { L: r1(rect[2] - rect[0]), W: bw, T: r1(bh), stock: 'taco', notes: 'Entre los largos · encolado a la base · insertos M5 por la cara exterior' + (th.notches.length ? ' · muescas de cables abiertas arriba' : '') },
+          follow: 'B1', explode: [0, -200, 0] }));
+      });
+      const cover = bw - e0 - (tv.x0 - xi0);
+      if (cover < 6) warn('warn', `Los tacos solo pisan ${r1(cover)} mm del borde de la tele: usa tacos más anchos o reduce el margen.`);
+      if (Math.min(tv.x0 - xi0, tv.z0 - zi0) + p.tvLip < bw - e0) warn('warn', `El taco (${bw} mm) es más ancho que el borde plano de la trasera más la holgura (${r1(p.tvLip + g)} mm): achaflana su arista interior o usa tacos de ${Math.floor(p.tvLip + g)} mm, si no apoya en la curva.`);
+      if (p.baseFix === 'magnetos') warn('info', 'Con bandeja la base se sujeta por los costados: los imanes no tienen dónde agarrar; usa tornillos.');
+    }
     if (p.mount === 'base') ribZ.forEach(z => [-1, 1].forEach(sx => baseHoles.push({ circle: [vx + sx * p.vesa / 2, z, 5], tag: 'Taladro Ø10 VESA, avellanado por debajo' })));
   }
   add({ id: 'B1', key: 'base', name: 'Base extraíble (trasera de la tele)', role: 'base', mat: 'ply', step: 'base',
@@ -437,15 +498,15 @@ export function buildDesign(p) {
   // ── protector ──
   const ctTop = p.cover !== 'ninguno' && p.frameFinish === 'mismo' ? p.coverT : 0;
   const protY = twoLayer ? yF + t : protTop ? yTop + ctTop : yS;
-  const protHoles = protTop ? [[xi0 + cb / 2, zi0 + cb / 2], [xi1 - cb / 2, zi0 + cb / 2], [xi0 + cb / 2, zi1 - cb / 2], [xi1 - cb / 2, zi1 - cb / 2]].map(([x, z]) => ({ circle: [x, z, 2.5], tag: 'Taladro Ø5 (tornillo con arandela de copa)' })) : [];
+  const protHoles = protTop ? (edge ? [[xo0 + t / 2, zo0 + t / 2], [xo1 - t / 2, zo0 + t / 2], [xo0 + t / 2, zo1 - t / 2], [xo1 - t / 2, zo1 - t / 2]] : [[xi0 + cb / 2, zi0 + cb / 2], [xi1 - cb / 2, zi0 + cb / 2], [xi0 + cb / 2, zi1 - cb / 2], [xi1 - cb / 2, zi1 - cb / 2]]).map(([x, z]) => ({ circle: [x, z, 2.5], tag: 'Taladro Ø5 (tornillo con arandela de copa)' })) : [];
   if (protRect) {
     add({ id: 'P1', key: 'protector', name: prot.label, role: 'protector', mat: prot.mat, step: protUnder ? 'tv' : 'protector',
       solids: [{ plane: 'XZ', rect: protRect, t: [protY, protY + pt], holes: protHoles }],
       cut: { L: r1(protRect[2] - protRect[0]), W: r1(protRect[3] - protRect[1]), T: pt, stock: 'protector', notes: protTop ? 'Del tamaño exterior de la caja · cantos pulidos · 4 taladros Ø5 en las esquinas' : 'Cantos pulidos, esquinas R3' }, explode: [0, protUnder ? 120 : 340, 0] });
     if (protTop) {
-      hw.push({ g: 'TV', name: 'Tornillo 3,5 × 30 + arandela de copa (protector → postes de esquina)', qty: 4, unit: 0.15 });
+      hw.push({ g: 'TV', name: `Tornillo 3,5 × 30 + arandela de copa (protector → ${edge ? 'esquinas de las paredes' : 'postes de esquina'})`, qty: 4, unit: 0.15 });
       if (prot.mat === 'glass') warn('warn', 'Un vidrio templado no se taladra después de templar: pide los 4 taladros de las esquinas al cortarlo, o usa el marco doble con pozo.');
-      if (!p.cornerBlocks) warn('info', 'Sin postes de esquina, los tornillos del protector solo muerden los 10 mm del marco.');
+      if (!p.cornerBlocks && !edge) warn('info', 'Sin postes de esquina, los tornillos del protector solo muerden los 10 mm del marco.');
     }
   }
 
@@ -461,6 +522,14 @@ export function buildDesign(p) {
     const gr = [tv.x0 + 1, tv.z0 + 1, tv.x1 - 1, tv.z1 - 1];
     add({ id: 'G1', key: 'gasket', name: 'Burlete EPDM ' + gw + '×' + gk, role: 'burlete', mat: 'foam', step: 'burlete', cut: { L: r1(2 * (gr[2] - gr[0] + gr[3] - gr[1])), W: gw, T: gk, stock: 'espuma', notes: 'Cinta adhesiva en rollo' },
       solids: [{ plane: 'XZ', rect: gr, t: [gy, yF], notches: [[gr[0] + gw, gr[1] + gw, gr[2] - gw, gr[3] - gw], ...(irCovered ? [[irPos[0] - 10, gr[3] - gw - 1, irPos[0] + 10, gr[3] + 1]] : [])] }], explode: [0, 150, 0] });
+  }
+
+  if (edge) {
+    const gr = [xi0 + 0.5, zi0 + 0.5, xi1 - 0.5, zi1 - 0.5], gw = Math.min(10, bw - 4);
+    const inner = [tv.x0 + 2 + gw, tv.z0 + 2 + gw, tv.x1 - 2 - gw, tv.z1 - 2 - gw];
+    add({ id: 'G2', key: 'gasketLow', name: 'Burlete de apoyo EPDM ' + gw + '×' + supGk, role: 'burlete', mat: 'foam', step: 'costillas', cut: { L: r1(2 * (gr[2] - gr[0] + gr[3] - gr[1])), W: gw, T: supGk, stock: 'espuma', notes: 'Sobre el canto de los tacos, donde apoya el borde de la tele' },
+      solids: [{ plane: 'XZ', rect: [tv.x0 + 2, tv.z0 + 2, tv.x1 - 2, tv.z1 - 2], t: [battenTop, battenTop + supGk], notches: [inner] }], follow: 'B1', explode: [0, -170, 0] });
+    hw.push({ g: 'TV', name: `Burlete EPDM adhesivo ${gw} × ${supGk} mm (apoyo en los tacos)`, qty: Math.ceil((2 * (p.tvW + p.tvH)) / 1000 * 10) / 10, unit: 2, u: 'm' });
   }
 
   // ── revestimiento exterior ──
@@ -496,15 +565,16 @@ export function buildDesign(p) {
     if (p.mount === 'base' && p.footH < 7) warn('warn', `Las cabezas de los M8 avellanados quedan enrasadas, pero con patas de ${p.footH} mm la base casi toca la mesa.`);
   }
   if (p.handle === 'maleta') {
-    fixtures.push({ kind: 'handle', pos: [0, midY(battenTop, yF), zo0 - ct], span: 2 * boltX, step: 'remate', follow: 'W1' });
+    fixtures.push({ kind: 'handle', pos: [0, bandMid, zo0 - ct], span: 2 * boltX, step: 'remate', follow: 'W1' });
     hw.push({ g: 'Transporte', name: `Asa de maleta / amplificador ${Math.round(2 * boltX)} mm entre ejes`, qty: 1, unit: 9 });
-    hw.push({ g: 'Transporte', name: 'Tornillo M6 × 40 + tuerca de garra (asa)', qty: 2, unit: 0.6 });
+    hw.push({ g: 'Transporte', name: edge ? 'Tornillo M6 × 25 + inserto M6 en el taco de apoyo (asa)' : 'Tornillo M6 × 40 + tuerca de garra (asa)', qty: 2, unit: 0.6 });
+    if (edge) warn('info', 'El asa va atornillada al taco de apoyo del fondo: al levantarla, el peso de la tele sube por la bandeja directo al asa. Para abrir la base hay que quitar también sus dos tornillos.');
   } else if (p.handle === 'embutida') {
-    fixtures.push({ kind: 'dish', pos: [0, midY(battenTop, yF), zo0 - ct], w: Math.min(160, 2 * handleHalf + 8), h: Math.min(76, wallH - 14), d: dishD, axis: 'z', sgn: 1, step: 'remate' });
+    fixtures.push({ kind: 'dish', pos: [0, bandMid, zo0 - ct], w: Math.min(160, 2 * handleHalf + 8), h: Math.min(76, edge ? bandH : wallH - 14), d: dishD, axis: 'z', sgn: 1, step: 'remate' });
     hw.push({ g: 'Transporte', name: 'Asa embutida tipo flight-case (cazo ' + dishD + ' mm)', qty: 1, unit: 12 });
   } else if (p.handle === 'laterales') {
-    fixtures.push({ kind: 'dish', pos: [xo0 - ct, midY(battenTop, yF), 0], w: 140, h: Math.min(70, wallH - 14), d: dishD, axis: 'x', sgn: 1, step: 'remate' });
-    fixtures.push({ kind: 'dish', pos: [xo1 + ct, midY(battenTop, yF), 0], w: 140, h: Math.min(70, wallH - 14), d: dishD, axis: 'x', sgn: -1, step: 'remate' });
+    fixtures.push({ kind: 'dish', pos: [xo0 - ct, bandMid, 0], w: 140, h: Math.min(70, edge ? bandH : wallH - 14), d: dishD, axis: 'x', sgn: 1, step: 'remate' });
+    fixtures.push({ kind: 'dish', pos: [xo1 + ct, bandMid, 0], w: 140, h: Math.min(70, edge ? bandH : wallH - 14), d: dishD, axis: 'x', sgn: -1, step: 'remate' });
     hw.push({ g: 'Transporte', name: 'Asa embutida pequeña (cazo ' + dishD + ' mm)', qty: 2, unit: 8 });
   }
   if (p.corners) {
@@ -603,11 +673,15 @@ export function buildDesign(p) {
   const battenLen = battens.reduce((s, b) => s + b.cut.L, 0);
   hw.unshift(
     { g: 'Caja', name: 'Cola blanca D3 (o poliuretano)', qty: 1, unit: 6 },
-    { g: 'Caja', name: 'Tornillo madera 3,5 × 25 avellanado (listones y tacos, desde fuera)', qty: Math.ceil(battenLen / 120) + (p.cornerBlocks ? 16 : 0) + (p.mount === 'vesa' ? 8 : 0), unit: 0.04 },
+    ...(edge ? [] : [{ g: 'Caja', name: 'Tornillo madera 3,5 × 25 avellanado (listones y tacos, desde fuera)', qty: Math.ceil(battenLen / 120) + (p.cornerBlocks ? 16 : 0) + (p.mount === 'vesa' ? 8 : 0), unit: 0.04 }]),
     ...(p.mount === 'base' ? [{ g: 'Caja', name: 'Tornillo madera 3,5 × 30 avellanado (base → costillas, desde abajo)', qty: 8, unit: 0.05 }] : []),
     { g: 'Caja', name: 'Puntas / clavos sin cabeza 1,2 × 25 (marco sobre paredes)', qty: Math.ceil((2 * (X + Z)) / 80) * layers, unit: 0.02 },
   );
-  if (p.baseFix === 'insertos') {
+  if (edge) {
+    hw.push({ g: 'Base', name: 'Inserto roscado M5 para madera (cara exterior de los tacos)', qty: p.baseScrews, unit: 0.35 });
+    hw.push({ g: 'Base', name: `Tornillo M5 × 20 avellanado Allen negro (pared → taco)`, qty: p.baseScrews, unit: 0.15 });
+    hw.push({ g: 'Base', name: 'Tornillo madera 3,5 × 30 avellanado (base → tacos de apoyo, desde abajo)', qty: Math.ceil(2 * (innerX + innerZ) / 150), unit: 0.05 });
+  } else if (p.baseFix === 'insertos') {
     hw.push({ g: 'Base', name: 'Inserto roscado M5 para madera (listones)', qty: p.baseScrews, unit: 0.35 });
     hw.push({ g: 'Base', name: 'Tornillo M5 × 16 avellanado Allen (DIN 7991)', qty: p.baseScrews, unit: 0.15 });
   } else if (p.baseFix === 'tirafondos') {
@@ -646,7 +720,7 @@ export function buildDesign(p) {
   if (!p.vents && !p.fans) warn('warn', 'Sin rejillas ni ventiladores la tele (≈ 54 W) se calienta dentro de la caja. Activa al menos las rejillas.');
   if (p.fit < 1.5) warn('warn', `Holgura tele ↔ caja de ${p.fit} mm: si la tele real mide 1–2 mm más que la ficha, no entra. Mídela antes de cortar o deja ≥ 2 mm.`);
   if (p.gasket === 0) warn('info', 'Sin burlete, el marco apoya directamente en el bisel de la tele: puede marcarlo o vibrar.');
-  if (wallH - t - bh < 30) warn('warn', 'Las paredes quedan muy bajas para los pasacables y las rejillas.');
+  if (!edge && wallH - t - bh < 30) warn('warn', 'Las paredes quedan muy bajas para los pasacables y las rejillas.');
   if (X > 2420 || Z > 1200 || (p.lid && Math.min(X, Z) + 2 * t + 10 > 1200)) warn('error', 'Alguna pieza no cabe en un tablero estándar de 2440 × 1220 (con 10 mm de margen).');
 
   const px = 1920 / p.screenW; // px por mm
@@ -654,7 +728,7 @@ export function buildDesign(p) {
     X, Z, H, outer, innerX, innerZ, wallH, g, gL, gR, ring1, ring2, y0, yBaseTop, yB, yS, yF, yTop, yRim,
     mass, coverArea: coverAreaReal, op1, op2, protRect, tv, scr, bezelTop, bezelSide, vol,
     pxPerMm: px, inchPx: 25.4 * px, gridCells: [Math.floor(p.screenW / 25.4), Math.floor(p.screenH / 25.4)],
-    railX, vz, ribs, boltL, prof: { hx: prof.hx, pz0: prof.pz0, pz1: prof.pz1, lip: prof.lip }, protY, protTop, protAbove: twoLayer || protTop, screwPts, twoLayer, pt, ct, cy, cz, portWall, pockets: pocketHoles.map(h => h.rect), cardSlots: cardHoles.map(h => h.rect),
+    railX, vz, ribs, boltL, edge, band, battenTop, bw: p.battenW, prof: { hx: prof.hx, pz0: prof.pz0, pz1: prof.pz1, lip: prof.lip }, protY, protTop, protAbove: twoLayer || protTop, screwPts, twoLayer, pt, ct, cy, cz, portWall, pockets: pocketHoles.map(h => h.rect), cardSlots: cardHoles.map(h => h.rect),
   };
 
   // cotas para la escena y los planos

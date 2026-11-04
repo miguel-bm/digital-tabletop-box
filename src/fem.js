@@ -199,7 +199,7 @@ export function buildMesh(spec, h = 35) {
   }
   // tacos de la bandeja: paredes bajas de pino con los nudos de la base
   if (baseOn && tray) {
-    const pine = { E: 9000, nu: 0.3, G12: 650, G13: 650, t: tray.t, rho: 500 };
+    const pine = { E: tray.E ?? 9000, nu: 0.3, G12: tray.G ?? 650, G13: tray.G ?? 650, t: tray.t, rho: 500 };
     const yt = ys.filter(y => y <= yb + tray.h + 0.01);
     for (const s of [-1, 1]) {
       for (let i = 0; i < xs.length - 1; i++) for (let k = 0; k < yt.length - 1; k++) {

@@ -269,7 +269,8 @@ export function femSpec(d) {
   const tEq = (w, h) => { const sec = composite([{ b: w, h, yc: p.t + h / 2, E: 10000 }, { b: w, h: p.t, yc: p.t / 2, E: Eb }]); return Math.cbrt((12 * sec.EI) / (Eb * w)); };
   const ribs = (m.ribs || []).map(r => ({ x0: r.x0, x1: r.x1, z0: r.z - r.w / 2, z1: r.z + r.w / 2, tEq: tEq(r.w, r.h) }));
   // bandeja: los tacos de apoyo son paredes bajas de la base, unidas a la caja solo por los tornillos
-  const tray = m.edge ? { h: m.battenTop - m.yBaseTop + p.t / 2, t: p.battenW, ys: (m.band[0] + m.band[1]) / 2 } : null;
+  const lam = p.trayMat === 'contrachapado';
+  const tray = m.edge ? { h: m.battenTop - m.yBaseTop + p.t / 2, t: p.battenW, ys: (m.band[0] + m.band[1]) / 2, E: lam ? Eb : 9000, G: lam ? PLY[p.plyType].G : 650 } : null;
   return {
     X: m.X, Z: m.Z, t: p.t, y0: m.y0, yF: m.yF, layers: m.twoLayer ? 2 : 1, op1: m.op1, op2: m.op2,
     screws: m.screwPts, ply: PLY[p.plyType], feet: [...fc, ...rest], hangers: hangers.length ? hangers : [[-200, -Zm], [200, -Zm], [-200, Zm], [200, Zm]],

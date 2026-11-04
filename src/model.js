@@ -8,19 +8,41 @@ const r1 = v => Math.round(v * 10) / 10;
 
 // Trasera de la tele: un borde fino de fondo tvRimD y una «meseta» de fondo tvD (bumpW × bumpH,
 // desplazada bumpDz hacia el canto inferior) unidas por superficies curvas, como la carcasa
-// abombada de las Samsung de la serie M. Devuelve el fondo (mm) en cada punto (x, z).
+// de las Samsung de la serie M: vista de lado es una cuña, fina arriba y gruesa en el tercio
+// inferior, con una caída larga y suave hacia el canto superior y corta hacia el inferior.
+// Lleva además la ranura de ventilación de arriba y el hueco escalonado de conexiones.
+// Devuelve el fondo (mm) en cada punto (x, z).
 export function tvProfile(p, tv) {
   const lip = Math.max(4, p.tvLip ?? 8), D = p.tvD, R = Math.min(p.tvRimD, p.tvD);
-  const cx = (tv.x0 + tv.x1) / 2, halfW = (tv.x1 - tv.x0) / 2;
+  const cx = (tv.x0 + tv.x1) / 2, cz = (tv.z0 + tv.z1) / 2, halfW = (tv.x1 - tv.x0) / 2, H = tv.z1 - tv.z0;
   const hx = Math.max(10, Math.min(p.bumpW / 2, halfW - lip - 20));
   const pz0 = Math.max(tv.z0 + lip + 20, p.bumpDz - p.bumpH / 2), pz1 = Math.min(tv.z1 - lip - 20, Math.max(pz0 + 10, p.bumpDz + p.bumpH / 2));
   const fall = (dd, ex) => (dd <= 0 ? 1 : dd >= ex ? 0 : 1 - (dd / ex) ** 2);
-  const depth = (x, z) => {
+  // caída hacia arriba: casi recta, suave en los dos extremos (medida en la foto de perfil)
+  const sfall = (dd, ex) => { if (dd <= 0) return 1; if (dd >= ex) return 0; const a = 1 - dd / ex; return (a * a * (3 - 2 * a) + a) / 2; };
+  // hueco de conexiones: en el lado de los puertos, en dos niveles; el escalón lleva los
+  // conectores laterales (HDMI, USB) mirando al canto de ese lado
+  const sgn = p.portSide !== 'izquierda' ? 1 : -1;
+  const eX = sgn > 0 ? tv.x1 : tv.x0;
+  const rxA = eX - sgn * 225, rxB = eX - sgn * 90, rxS = eX - sgn * 165;
+  const recess = { x0: Math.min(rxA, rxB), x1: Math.max(rxA, rxB), xs: rxS, z0: cz - 0.05 * H, z1: cz + 0.41 * H, shallow: 5, deep: 15 };
+  const slot = { x0: tv.x0 + 0.07 * 2 * halfW, x1: tv.x1 - 0.07 * 2 * halfW, z: tv.z0 + 0.16 * H, w: 5 };
+  const shell = (x, z) => {
     const fx = fall(Math.abs(x - cx) - hx, halfW - lip - hx);
-    const fz = z < pz0 ? fall(pz0 - z, pz0 - tv.z0 - lip) : fall(z - pz1, tv.z1 - lip - pz1);
+    const fz = z < pz0 ? sfall(pz0 - z, pz0 - tv.z0 - lip) : fall(z - pz1, tv.z1 - lip - pz1);
     return R + (D - R) * fx * fz;
   };
-  return { depth, cx, hx, pz0, pz1, lip, D, R };
+  const depth = (x, z) => {
+    const d = shell(x, z);
+    if (x > recess.x0 && x < recess.x1 && z > recess.z0 && z < recess.z1) return Math.max(R * 0.6, d - ((x - rxS) * sgn > 0 ? recess.deep : recess.shallow));
+    return d;
+  };
+  // puertos: HDMI en el escalón del hueco; el enchufe, junto al canto inferior pasado el pie central
+  const ports = {
+    hdmi: { x: rxS, z: cz + 0.08 * H, dir: 'x' },
+    power: { x: cx - sgn * (p.powerDx ?? 120), z: tv.z1 - 28, dir: 'z' },
+  };
+  return { depth, shell, cx, hx, pz0, pz1, lip, D, R, recess, slot, ports, sgn };
 }
 
 export function buildDesign(p) {
@@ -122,7 +144,8 @@ export function buildDesign(p) {
 
   // salida de cables (en la pared lateral del lado de conexiones; u = z)
   const cy = edge ? band[0] + bandH * p.cableY : y0 + t + (wallH - t) * p.cableY;
-  const cz = p.handle === 'laterales' ? [tv.cz - innerZ * 0.33, tv.cz + innerZ * 0.31] : [tv.cz - innerZ * 0.18, tv.cz + innerZ * 0.12];
+  // [corriente, HDMI]: el enchufe de la tele está junto al canto inferior (+z) y el HDMI hacia el centro
+  const cz = p.handle === 'laterales' ? [tv.cz + innerZ * 0.31, tv.cz - innerZ * 0.33] : [tv.cz + innerZ * 0.27, tv.cz + innerZ * 0.02];
   const cableZones = [];
   const hdmiOut = p.source === 'externa' || !p.source;
   const czUse = hdmiOut ? cz : [cz[0]];
@@ -312,7 +335,7 @@ export function buildDesign(p) {
     ribZ.forEach((z, i) => {
       // la costilla no puede tocar la trasera en ningún punto de su huella
       let dv = 0;
-      for (let k = 0; k <= 40; k++) for (const dz of [-w / 2, 0, w / 2]) dv = Math.max(dv, prof.depth(rx0 + (rx1 - rx0) * k / 40, z + dz));
+      for (let k = 0; k <= 40; k++) for (const dz of [-w / 2 - 6, -w / 4, 0, w / 4, w / 2 + 6]) dv = Math.max(dv, prof.depth(rx0 + (rx1 - rx0) * k / 40, z + dz));
       const dHole = Math.min(prof.depth(vx - p.vesa / 2, z), prof.depth(vx + p.vesa / 2, z));
       const yTopR = yS - dv - (edge ? 1 : 0), hR = yTopR - yBaseTop;
       ribs.push({ z, x0: rx0, x1: rx1, w, h: hR, shim: dv - dHole });
@@ -454,6 +477,11 @@ export function buildDesign(p) {
       });
       // tacos de apoyo: encolados a la base, contra las paredes; los largos de punta a punta
       const e0 = 0.5;
+      const lam = p.trayMat === 'contrachapado', nLam = Math.max(1, Math.round(bw / t));
+      const blockCut = (L, notes) => lam
+        ? { L, W: r1(bh), T: t, n: nLam, stock: 'tablero', notes: `${nLam} tiras de ${t} mm encoladas cara con cara · ` + notes }
+        : { L, W: bw, T: r1(bh), stock: 'taco', notes };
+      if (lam && Math.abs(nLam * t - bw) > 0.5) warn('info', `Con tiras de contrachapado el taco sale de ${nLam * t} mm (${nLam} × ${t}), no de ${bw}: ajusta el ancho del taco a ${nLam * t} mm.`);
       const through = (side, rect) => {
         const holes = [], notches = [];
         wallHoles[side].forEach(h => {
@@ -471,18 +499,18 @@ export function buildDesign(p) {
         const rect = [xi0 + e0, yBaseTop, xi1 - e0, battenTop];
         const th = through(side, rect);
         bi++;
-        battens.push(add({ id: 'L' + bi, key: 'batten' + bi, name: 'Taco de apoyo ' + (side === 'back' ? 'fondo' : 'frente'), role: 'liston', mat: 'batten', step: 'costillas',
+        battens.push(add({ id: 'L' + bi, key: 'batten' + bi, name: 'Taco de apoyo ' + (side === 'back' ? 'fondo' : 'frente'), role: 'liston', mat: lam ? 'ply' : 'batten', step: 'costillas',
           solids: [{ plane: 'XY', rect, t: z, holes: th.holes, notches: th.notches }],
-          cut: { L: r1(rect[2] - rect[0]), W: bw, T: r1(bh), stock: 'taco', notes: 'De punta a punta · encolado a la base · insertos M5 por la cara exterior' + (side === 'back' && p.handle === 'maleta' ? ' · 2 insertos M6 del asa' : '') },
+          cut: blockCut(r1(rect[2] - rect[0]), 'De punta a punta · encolado a la base · insertos M5 por la cara exterior' + (side === 'back' && p.handle === 'maleta' ? ' · 2 insertos M6 del asa' : '')),
           follow: 'B1', explode: [0, -200, 0] }));
       });
       [['left', [xi0 + e0, xi0 + e0 + bw]], ['right', [xi1 - e0 - bw, xi1 - e0]]].forEach(([side, x]) => {
         const rect = [zi0 + e0 + bw, yBaseTop, zi1 - e0 - bw, battenTop];
         const th = through(side, rect);
         bi++;
-        battens.push(add({ id: 'L' + bi, key: 'batten' + bi, name: 'Taco de apoyo ' + (side === 'left' ? 'izq.' : 'der.'), role: 'liston', mat: 'batten', step: 'costillas',
+        battens.push(add({ id: 'L' + bi, key: 'batten' + bi, name: 'Taco de apoyo ' + (side === 'left' ? 'izq.' : 'der.'), role: 'liston', mat: lam ? 'ply' : 'batten', step: 'costillas',
           solids: [{ plane: 'YZ', rect, t: x, holes: th.holes, notches: th.notches }],
-          cut: { L: r1(rect[2] - rect[0]), W: bw, T: r1(bh), stock: 'taco', notes: 'Entre los largos · encolado a la base · insertos M5 por la cara exterior' + (th.notches.length ? ' · muescas de cables abiertas arriba' : '') },
+          cut: blockCut(r1(rect[2] - rect[0]), 'Entre los largos · encolado a la base · insertos M5 por la cara exterior' + (th.notches.length ? ' · muescas de cables abiertas arriba' : '')),
           follow: 'B1', explode: [0, -200, 0] }));
       });
       const cover = bw - e0 - (tv.x0 - xi0);
@@ -605,13 +633,13 @@ export function buildDesign(p) {
   // puertos de la tele y cables hasta la pared de conexiones
   {
     const sgn = portRight ? 1 : -1;
-    const bx = prof.cx + sgn * (prof.hx + 25);
-    const zp = [prof.pz1 - 40, (prof.pz0 + prof.pz1) / 2 - 30];
-    const ports = [[bx, yS - prof.depth(bx, zp[0]) + 9, zp[0], 'power'], [bx, yS - prof.depth(bx, zp[1]) + 9, zp[1], 'hdmi']];
+    const pp = prof.ports, pw = pp.power, ph = pp.hdmi;
+    const ports = [[pw.x, yS - prof.depth(pw.x, pw.z) - 7, pw.z, 'power'], [ph.x, yS - prof.depth(ph.x + sgn * 8, ph.z) + 8, ph.z, 'hdmi']];
+    if (edge && tv.z1 - pw.z < bw + 6) warn('warn', `El enchufe de la tele queda a ${r1(tv.z1 - pw.z)} mm del canto inferior y el taco pisa ${r1(bw - (tv.z0 - zi0))} mm: rebaja el taco frontal en esa zona para que quepa la clavija.`);
     const wallX = portRight ? xo1 + ct : xo0 - ct, wallIn = portRight ? xi1 : xi0;
     const cyIn = Math.min(cy, yRim - 8);
     ports.forEach(([x, y, z, k], i) => {
-      fixtures.push({ kind: 'port', pos: [x, y, z], sgn, k, step: 'tv', follow: 'TV' });
+      fixtures.push({ kind: 'port', pos: [x, y, z], sgn, k, dir: k === 'power' ? 'z' : 'x', step: 'tv', follow: 'TV' });
       if (k === 'hdmi' && !hdmiOut) {
         if (p.source === 'stick') fixtures.push({ kind: 'dongle', pos: [x + sgn * 55, y, z], sgn, step: 'cables' });
         else {
@@ -625,11 +653,13 @@ export function buildDesign(p) {
       const zc = cz[k === 'power' ? 0 : 1];
       if (k === 'power' && p.source === 'minipc') {
         const sx = wallIn - sgn * (p.battenW + 26), sz = Math.max(cz[0] - 75, zi0 + p.battenW + 62);
-        fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts: [[x + sgn * 4, y, z], [x + sgn * 40, y - 6, z], [sx - sgn * 10, yBaseTop + 12, sz + 40], [sx, yBaseTop + 10, sz + 62]], r: 3.2, color: '#1b1b1c', step: 'cables' });
+        fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts: [[x, y - 4, z + 8], [x + sgn * 30, yBaseTop + 12, z + 2], [sx - sgn * 10, yBaseTop + 12, sz + 40], [sx, yBaseTop + 10, sz + 62]], r: 3.2, color: '#1b1b1c', step: 'cables' });
         fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts: [[sx, yBaseTop + 10, sz - 62], [wallIn - sgn * 40, cy - 6, (sz + zc) / 2], [wallIn - sgn * 12, cy, zc], [wallX + sgn * 30, cy, zc], [wallX + sgn * 110, Math.max(6, cy * 0.4), zc - 30], [wallX + sgn * 380, 6, zc - 120]], r: 3.2, color: '#1b1b1c', step: 'cables' });
         return;
       }
-      const pts = [[x + sgn * 4, y, z], [x + sgn * 40, y - 6, z], [wallIn - sgn * 40, Math.max(yBaseTop + 10, cyIn - 6), (z + zc) / 2], [wallIn - sgn * 12, cy, zc], [wallX + sgn * 30, cy, zc], [wallX + sgn * 110, Math.max(6, cy * 0.4), zc + 30 * (i ? 1 : -1)], [wallX + sgn * 380, 6, zc + 120 * (i ? 1 : -1)]];
+      // la clavija de corriente mira al canto inferior: el cable baja y corre junto al taco frontal
+      const start = k === 'power' ? [[x, y - 4, z + 8], [x + sgn * 30, yBaseTop + 12, z + 2], [wallIn - sgn * (bw + 40), yBaseTop + 12, z - 6]] : [[x + sgn * 4, y, z], [x + sgn * 40, y - 6, z]];
+      const pts = [...start, [wallIn - sgn * 40, Math.max(yBaseTop + 10, cyIn - 6), (z + zc) / 2], [wallIn - sgn * 12, cy, zc], [wallX + sgn * 30, cy, zc], [wallX + sgn * 110, Math.max(6, cy * 0.4), zc + 30 * (i ? 1 : -1)], [wallX + sgn * 380, 6, zc + 120 * (i ? 1 : -1)]];
       fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts, r: k === 'power' ? 3.2 : 3.8, color: k === 'power' ? '#1b1b1c' : '#2a2b30', step: 'cables' });
     });
     if (irCovered) fixtures.push({ kind: 'ir', pos: [irPos[0], yS, irPos[1]], step: 'tv', follow: 'TV' });

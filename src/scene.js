@@ -201,6 +201,10 @@ export class Viewer {
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), scrMat);
     screen.rotation.x = -Math.PI / 2;
     screen.position.set((tv.scr.x0 + tv.scr.x1) / 2, tv.yS + 0.3, (tv.scr.z0 + tv.scr.z1) / 2);
+    // ranura de ventilación de la parte alta de la trasera
+    const sl = prof.slot, slotM = new THREE.Mesh(new THREE.BoxGeometry(sl.x1 - sl.x0, 1, sl.w), this.mats.get('rubber'));
+    slotM.position.set((sl.x0 + sl.x1) / 2, tv.yS - prof.depth((sl.x0 + sl.x1) / 2, sl.z) - 0.2, sl.z);
+    g.add(slotM);
     // VESA
     const vm = this.mats.get('darkmetal');
     const vg = new THREE.CylinderGeometry(6, 6, 2, 12);
@@ -265,7 +269,10 @@ export class Viewer {
     } else if (f.kind === 'grommet') {
       add(new THREE.TorusGeometry(f.r, 2.5, 8, 28), m.get('rubber'), x + f.sgn * 1, y, z, [0, Math.PI / 2, 0]);
     } else if (f.kind === 'port') {
-      add(new THREE.BoxGeometry(6, 12, f.k === 'power' ? 22 : 60), m.get('darkmetal'), x + f.sgn * 2, y, z);
+      if (f.dir === 'z') {
+        // clavija acodada de corriente, mirando al canto inferior
+        add(new RoundedBoxGeometry(22, 14, 16, 2, 3), m.get('rubber'), x, y, z + 4);
+      } else add(new THREE.BoxGeometry(6, 12, 60), m.get('darkmetal'), x + f.sgn * 2, y, z);
     } else if (f.kind === 'cable') {
       const curve = new THREE.CatmullRomCurve3(f.pts.map(q => new THREE.Vector3(...q)));
       const me = add(new THREE.TubeGeometry(curve, 80, f.r, 8), new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.55 }), 0, 0, 0);
@@ -611,10 +618,16 @@ export class Viewer {
 
 // Trasera curva de la tele como malla: una superficie (x, z) → y = pantalla − fondo, más el canto.
 function tvShellGeometry(tv, prof) {
-  const nx = 72, nz = 44;
-  const xs = [], zs = [];
-  for (let i = 0; i <= nx; i++) xs.push(tv.x0 + (tv.x1 - tv.x0) * i / nx);
-  for (let j = 0; j <= nz; j++) zs.push(tv.z0 + (tv.z1 - tv.z0) * j / nz);
+  // rejilla regular más líneas a ambos lados de las paredes del hueco de conexiones
+  const r = prof.recess;
+  const merge = (lo, hi, n, cuts) => {
+    const v = [];
+    for (let i = 0; i <= n; i++) v.push(lo + (hi - lo) * i / n);
+    cuts.forEach(c => v.push(c - 0.6, c + 0.6));
+    return [...new Set(v.filter(q => q >= lo && q <= hi).map(q => Math.round(q * 100) / 100))].sort((a, b) => a - b);
+  };
+  const xs = merge(tv.x0, tv.x1, 72, [r.x0, r.xs, r.x1]), zs = merge(tv.z0, tv.z1, 44, [r.z0, r.z1]);
+  const nx = xs.length - 1, nz = zs.length - 1;
   const pos = [], idx = [], side = [];
   const yTop = tv.yS - 2;
   xs.forEach(x => zs.forEach(z => pos.push(x, tv.yS - prof.depth(x, z), z)));

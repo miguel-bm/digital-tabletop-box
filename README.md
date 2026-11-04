@@ -25,8 +25,9 @@ sacarla, se llega a cables y tele sin tocar nada más. El protector de metacrila
 
 ## Qué hay en la app
 
-- **Modelo 3D paramétrico**: tele con su trasera abombada (borde fino, zona de fondo máximo y curvas
-  entre ambas, como la serie M de Samsung), puertos y receptor IR; paredes, postes, marco (simple con
+- **Modelo 3D paramétrico**: tele con su trasera en cuña (fina arriba y gruesa en el tercio inferior,
+  ajustada a fotos de perfil de la serie M de Samsung), ranura de ventilación, hueco de conexiones
+  escalonado con los HDMI mirando al lateral, enchufe junto al canto inferior y receptor IR; paredes, postes, marco (simple con
   el protector encima, doble con pozo o simple con el protector debajo), base extraíble con costillas
   VESA y ventilación, listones, cables, revestimiento, herrajes y tapa.
 - **Opciones**: uniones (a tope, galce, dedos), márgenes, marco y protector (metacrilato, policarbonato,
@@ -85,6 +86,9 @@ sacarla, se llega a cables y tele sin tocar nada más. El protector de metacrila
 | `src/bom.js` / `src/decisions.js` | Lista de compra y comparativas |
 | `src/sim.js` / `src/fem.js` / `src/simui.js` | Cálculos analíticos, FEM de láminas y su interfaz |
 
+Los tacos de apoyo de la bandeja pueden ser listón de pino o tiras del mismo contrachapado encoladas
+(dos de 10 mm por taco); la rigidez es prácticamente la misma.
+
 Las medidas marcadas «medir» (fondo del borde fino, tamaño y posición de la zona de fondo máximo de la
-trasera, posición VESA, receptor IR) son estimaciones:
+trasera, posición VESA, enchufe, receptor IR) son estimaciones:
 compruébalas con la tele delante antes de cortar (paso 1 de la guía).

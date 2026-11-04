@@ -18,7 +18,7 @@ export function cutRows(d) {
     const stock = c.stock || 'tablero';
     const k = [stock, pc.name.replace(/ (izq\.|der\.|izquierdo|derecho|fondo|frente|frontal|del fondo)$/i, ''), c.L, c.W, c.T].join('|');
     if (!rows.has(k)) rows.set(k, { stock, stockLabel: stock === 'tablero' ? `Contrachapado ${String(c.T).replace('.', ',')} mm` : STOCK[stock](d.params), name: pc.name, L: c.L, W: c.W, T: c.T, qty: 0, ids: [], notes: c.notes || notesFor(pc) });
-    const r = rows.get(k); r.qty++; r.ids.push(pc.id);
+    const r = rows.get(k); r.qty += c.n || 1; r.ids.push(pc.id);
     if (r.qty > 1) r.name = r.name.replace(/ (izq\.|der\.|izquierdo|derecho|fondo|frente|frontal|del fondo)$/i, '');
   });
   const order = ['tablero', 'taco', 'protector', 'espuma'];
@@ -49,7 +49,7 @@ export function packBoards(d) {
     if ((c.stock || 'tablero') !== 'tablero') return;
     const T = Math.round(c.T * 10) / 10;
     if (!byT.has(T)) byT.set(T, []);
-    byT.get(T).push({ id: pc.id, name: pc.name, w: c.L, h: c.W, frame: pc.role === 'marco' || pc.role === 'tapa' && pc.key === 'lidTop' });
+    for (let i = 0; i < (c.n || 1); i++) byT.get(T).push({ id: pc.id, name: pc.name, w: c.L, h: c.W, frame: pc.role === 'marco' || pc.role === 'tapa' && pc.key === 'lidTop' });
   });
   const { W, H, kerf, edge } = BOARD;
   const boards = [];
@@ -89,7 +89,7 @@ export function boardUsage(d) {
   d.pieces.forEach(pc => {
     if (pc.role === 'tv' || pc.skin) return;
     const c = pieceCut(pc);
-    if ((c.stock || 'tablero') === 'tablero') area += c.L * c.W * 1e-6;
+    if ((c.stock || 'tablero') === 'tablero') area += c.L * c.W * (c.n || 1) * 1e-6;
     if (c.stock === 'taco') battenM += (c.L + 5) / 1000;
   });
   const byT = {};

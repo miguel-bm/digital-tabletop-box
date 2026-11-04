@@ -5,15 +5,15 @@ export const DEFAULTS = {
   // ── televisor ──
   tvW: 972.9, tvH: 570, tvD: 55.1, tvRimD: 16, tvKg: 9.5,
   screenW: 951.8, screenH: 535.4, bezelBottom: 20,
-  bumpW: 760, bumpH: 300, bumpDz: 70,
+  bumpW: 780, bumpH: 170, bumpDz: 142,
   vesa: 200, vesaDx: 0, vesaDz: 25,
-  tvLip: 20, portSide: 'derecha', irHole: true, irDx: 0,
+  tvLip: 20, portSide: 'derecha', irHole: true, irDx: 0, powerDx: 120,
 
   // ── caja ──
   t: 10, plyType: 'abedul',
   fit: 2, margin: 0, portBay: 0, edgeSupport: true,
   gapBelow: 22, gasket: 3,
-  joint: 'tope', battenW: 20, battenH: 20, cornerBlocks: true,
+  joint: 'tope', battenW: 20, battenH: 20, trayMat: 'pino', cornerBlocks: true,
   footH: 8, feet: 6, centerFeet: true,
 
   // ── marco y protector ──
@@ -82,6 +82,7 @@ export const SCHEMA = [
     { k: 'vesa', l: 'Patrón VESA', u: 'mm', min: 75, max: 400, step: 25 },
     { k: 'vesaDx', l: 'VESA · desvío lateral · medir', u: 'mm', min: -200, max: 200, step: 1 },
     { k: 'vesaDz', l: 'VESA · desvío hacia abajo · medir', u: 'mm', min: -200, max: 200, step: 1 },
+    { k: 'powerDx', l: 'Enchufe de la tele · desvío del centro hacia el lado sin conexiones · medir', u: 'mm', min: -400, max: 400, step: 1 },
     { k: 'portSide', l: 'Lado de conexiones', type: 'select', opts: { derecha: 'Derecha (mirando la pantalla)', izquierda: 'Izquierda' } },
     { k: 'irHole', l: 'Ventana para el receptor del mando (IR)', type: 'bool' },
     { k: 'irDx', l: 'Receptor IR · desvío desde el centro · medir', u: 'mm', min: -480, max: 480, step: 1 },
@@ -97,6 +98,7 @@ export const SCHEMA = [
     { k: 'gasket', l: 'Burlete bajo el marco', u: 'mm', min: 0, max: 10, step: 0.5 },
     { k: 'joint', l: 'Unión de esquinas', type: 'select', opts: { tope: 'A tope + taco interior', rebaje: 'Rebaje (galce) + taco', dedos: 'Dedos (finger joint, CNC o sierra)' } },
     { k: 'battenW', l: 'Listón / taco de apoyo · ancho', u: 'mm', min: 10, max: 40, step: 1 },
+    { k: 'trayMat', l: 'Tacos de apoyo · material', type: 'select', opts: { pino: 'Listón de pino', contrachapado: 'Tiras del mismo contrachapado encoladas' } },
     { k: 'battenH', l: 'Listón interior · alto (sin bandeja)', u: 'mm', min: 10, max: 40, step: 1 },
     { k: 'cornerBlocks', l: 'Postes de esquina (apoyo del marco y del protector)', type: 'bool' },
     { k: 'footH', l: 'Altura de patas de goma', u: 'mm', min: 0, max: 30, step: 1 },

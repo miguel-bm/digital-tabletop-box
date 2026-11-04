@@ -2,7 +2,7 @@ import { DEFAULTS, SCHEMA, PARAM_INDEX, PRESETS, PLY, PROTECTORS, COVERS } from 
 import { buildDesign, pieceCut } from './model.js';
 import { Viewer, LAYERS, fmt } from './scene.js';
 import { COVER_SWATCHES, FRAME_SWATCHES } from './materials.js';
-import { planAssembly } from './assembly.js';
+import { planAssembly, fmtMin } from './assembly.js';
 import { cutRows, cutListCSV, boardUsage } from './cutlist.js';
 import { icon, decorate, setupTips } from './icons.js';
 import { renderDecisions } from './decisions.js';
@@ -512,7 +512,8 @@ function showStep(i, fly = true) {
   $('#guide-n').textContent = `${i + 1}/${guide.steps.length}`;
   $('#guide-title').textContent = st.title + (st.flip ? ' · boca abajo' : '');
   $('#guide-text').textContent = st.text;
-  $('#guide-access').innerHTML = st.access ? `<b>Ojo</b>${st.access}` : '';
+  const total = guide.steps.reduce((s, x) => s + x.min, 0), left = guide.steps.filter(x => !doneSteps[x.key]).reduce((s, x) => s + x.min, 0);
+  $('#guide-access').innerHTML = (st.access ? `<b>Ojo</b>${st.access}` : '') + `<span class="gtime">⏱ ${fmtMin(st.min)}${st.dry ? ` + ${fmtMin(st.dry)} de secado` : ''} · total ≈ ${fmtMin(total)} de trabajo, quedan ${fmtMin(left)}</span>`;
   const parts = st.now.map(id => design.pieces.find(p => p.id === id)).filter(Boolean);
   $('#guide-parts').innerHTML = parts.map(p => `<span class="gp"><b>${p.id}</b> ${p.name}</span>`).join('') + (st.hw || []).map(h => `<span class="gp hw">${h}</span>`).join('');
   $('#guide-done').checked = !!doneSteps[st.key];

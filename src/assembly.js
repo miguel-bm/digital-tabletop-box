@@ -121,5 +121,9 @@ export function planAssembly(d) {
     access: 'Con la tapa puesta la caja aguanta que le apoyes cosas encima o la metas en el maletero.',
     hw: ['Cierres de palanca', 'Espuma 10 mm'],
   });
+  // tiempos orientativos (min de trabajo + espera de secado)
+  const T = { medir: [20, 0], corte: [100, 0], listones: [40, 30], caja: [45, 60], marco: [30, 60], tacos: [30, 60], marco2: [30, 60], piel: [100, 20], burlete: [10, 0], tv: [25, 0], cables: [20, 0], base: [15, 0], protector: [5, 0], remate: [30, 0], tapa: [70, 30] };
+  steps.forEach(s => { const [w, dry] = T[s.key] || [20, 0]; s.min = w; s.dry = dry; });
   return steps;
 }
+export const fmtMin = m => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ' ' + (m % 60) + ' min' : ''}` : `${m} min`);

@@ -338,7 +338,7 @@ function sheetTaller(d, n, total) {
     const need = 5 + lines.length * 3.2 + 2;
     if (y + need > H - 40) { x += colW + 12; y = 30; }
     b += `<rect x="${x}" y="${y - 3.4}" width="6" height="4.4" rx="1" fill="${ACC}"/>` + text(x + 3, y - 0.2, String(i + 1), 3, 'text-anchor="middle" font-weight="700"');
-    b += text(x + 8, y, st.title + (st.flip ? ' · boca abajo' : ''), 3.3, 'font-weight="700"');
+    b += text(x + 8, y, st.title + (st.flip ? ' · boca abajo' : '') + `  ·  ${st.min} min${st.dry ? ' + ' + st.dry + ' secado' : ''}`, 3.3, 'font-weight="700"');
     y += 4.2;
     lines.forEach(l => { b += text(x + 8, y, l, 2.45); y += 3.2; });
     y += 2.4;

@@ -80,6 +80,20 @@ const viewer = new Viewer($('#viewport'), {
     tooltip.style.left = Math.min(innerWidth - 310, e.clientX + 14) + 'px';
     tooltip.style.top = e.clientY + 14 + 'px';
   },
+  onEditDim: (dm, v) => {
+    // la cota exterior se consigue moviendo el margen interior (largo/ancho) o el hueco bajo la tele (alto)
+    const M = design.metrics, P = { ...params };
+    if (dm.edit === 'X') P.margin = Math.round((params.margin + (v - M.outer.X) / 2) * 10) / 10;
+    if (dm.edit === 'Z') P.margin = Math.round((params.margin + (v - M.outer.Z) / 2) * 10) / 10;
+    if (dm.edit === 'H') P.gapBelow = Math.round((params.gapBelow + (v - (M.outer.H + M.y0))) * 10) / 10;
+    const pd = PARAM_INDEX[dm.edit === 'H' ? 'gapBelow' : 'margin'];
+    const k = dm.edit === 'H' ? 'gapBelow' : 'margin';
+    const cl = Math.max(pd.min, Math.min(pd.max, P[k]));
+    if (cl !== P[k]) toast(`Limitado: ${pd.l} entre ${pd.min} y ${pd.max} mm`);
+    P[k] = cl;
+    commit(P);
+    if (dm.edit === 'X' || dm.edit === 'Z') toast(`Margen interior → ${f1(P.margin)} mm (cambia largo y ancho a la vez)`);
+  },
   onPick: pc => { if (pc && pc.role !== 'tv') { selectTab('despiece'); const row = document.querySelector(`[data-pid="${pc.id}"]`); if (row) { row.scrollIntoView({ block: 'center', behavior: 'smooth' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 1200); } } },
 });
 window.viewer = viewer;

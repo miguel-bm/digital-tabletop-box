@@ -26,9 +26,9 @@ export const LAYERS = {
 const roleLayer = Object.fromEntries(Object.entries(LAYERS).flatMap(([k, v]) => v.roles.map(r => [r, k])));
 
 export class Viewer {
-  constructor(host, { onHover, onPick } = {}) {
+  constructor(host, { onHover, onPick, onEditDim } = {}) {
     this.host = host;
-    this.onHover = onHover; this.onPick = onPick;
+    this.onHover = onHover; this.onPick = onPick; this.onEditDim = onEditDim;
     this.state = { explode: 0, hidden: new Set(['tapa']), edges: true, xray: false, section: false, lidOn: false };
     this.anim = { explode: 0, lid: 0, flip: 0 };
     this.flipTarget = 0;
@@ -94,6 +94,12 @@ export class Viewer {
     r.domElement.addEventListener('pointerdown', e => { this.downAt = { x: e.clientX, y: e.clientY }; });
     r.domElement.addEventListener('pointerup', e => {
       if (!this.downAt || Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y) > 4) return;
+      // ¿clic en una cota editable?
+      const rect = r.domElement.getBoundingClientRect();
+      this.pointer.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+      this.raycaster.setFromCamera(this.pointer, this.camera);
+      const dh = this.raycaster.intersectObjects(this.dims.pickables(), false)[0];
+      if (dh && dh.object.userData.dimItem && dh.object.userData.dimItem.editable) { this.editDim(dh.object.userData.dimItem, e.clientX - rect.left, e.clientY - rect.top); return; }
       this.onPick && this.onPick(this.hovered ? this.hovered.userData.piece : null);
     });
     this.highlight = null;   // { now:Set(ids), done:Set(ids) } en la guía
@@ -169,7 +175,7 @@ export class Viewer {
     const lt = d.pieces.find(pc => pc.key === 'lidTop');
     this.lidTop = lt ? { top: lt.solids[0].t[1], Z: lt.solids[0].rect[3] - lt.solids[0].rect[1] } : null;
     this.buildScenery(d);
-    this.dims.build(d.dims.map(x => ({ ...x, off: [0, 0, 0], readonly: true, value: x.v })));
+    this.dims.build(d.dims.map(x => ({ ...x, off: [0, 0, 0], readonly: !x.edit, value: x.v })));
     this.applyVisibility();
     this.setEdges(this.state.edges);
     if (this.state.xray) this.mats.setXray(true);
@@ -386,6 +392,24 @@ export class Viewer {
     this.hovered = obj;
     this.onHover && this.onHover(obj ? obj.userData.piece : null, e);
     this.renderer.domElement.style.cursor = obj ? 'pointer' : '';
+  }
+
+  editDim(it, x, y) {
+    const inp = document.createElement('input');
+    inp.className = 'dim-editor';
+    inp.value = Math.round(it.value * 10) / 10;
+    inp.style.left = x + 'px'; inp.style.top = y + 'px';
+    this.host.appendChild(inp);
+    inp.focus(); inp.select();
+    let done = false;
+    const finish = ok => {
+      if (done) return; done = true;
+      const v = Number(String(inp.value).replace(',', '.'));
+      inp.remove();
+      if (ok && isFinite(v) && this.onEditDim) this.onEditDim(it.dm, v);
+    };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); e.stopPropagation(); });
+    inp.addEventListener('blur', () => finish(true));
   }
 
   // ───────── cámara ─────────

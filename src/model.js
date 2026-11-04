@@ -581,9 +581,9 @@ export function buildDesign(p) {
 
   // cotas para la escena y los planos
   const dims = [
-    { id: 'X', a: [xo0 - ct, y0 + outer.H, zo1 + ct + 60], b: [xo1 + ct, y0 + outer.H, zo1 + ct + 60], label: 'Largo total', v: outer.X, layer: 'general' },
-    { id: 'Z', a: [xo1 + ct + 60, y0 + outer.H, zo0 - ct], b: [xo1 + ct + 60, y0 + outer.H, zo1 + ct], label: 'Ancho total', v: outer.Z, layer: 'general' },
-    { id: 'H', a: [xo1 + ct + 60, 0, zo1 + ct], b: [xo1 + ct + 60, y0 + outer.H, zo1 + ct], label: 'Alto total', v: y0 + outer.H, layer: 'general' },
+    { id: 'X', a: [xo0 - ct, y0 + outer.H, zo1 + ct + 60], b: [xo1 + ct, y0 + outer.H, zo1 + ct + 60], label: 'Largo total', v: outer.X, layer: 'general', edit: 'X' },
+    { id: 'Z', a: [xo1 + ct + 60, y0 + outer.H, zo0 - ct], b: [xo1 + ct + 60, y0 + outer.H, zo1 + ct], label: 'Ancho total', v: outer.Z, layer: 'general', edit: 'Z' },
+    { id: 'H', a: [xo1 + ct + 60, 0, zo1 + ct], b: [xo1 + ct + 60, y0 + outer.H, zo1 + ct], label: 'Alto total', v: y0 + outer.H, layer: 'general', edit: 'H' },
     { id: 'SW', a: [scr.x0, yTop + 4, scr.z0 - 30], b: [scr.x1, yTop + 4, scr.z0 - 30], label: 'Área visible', v: p.screenW, layer: 'pantalla' },
     { id: 'SH', a: [scr.x0 - 30, yTop + 4, scr.z0], b: [scr.x0 - 30, yTop + 4, scr.z1], label: 'Área visible', v: p.screenH, layer: 'pantalla' },
     { id: 'R1', a: [xo0, yTop + 4, 0], b: [op1[0], yTop + 4, 0], label: 'Marco', v: op1[0] - xo0, layer: 'pantalla' },

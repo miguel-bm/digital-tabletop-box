@@ -115,7 +115,8 @@ export function renderSim(host, d, viewer, { close }) {
       </div>
       <div id="fem-prog"></div>
       <div id="fem-out">${cur ? femSummary(d, cur) : '<p class="muted">Calculando…</p>'}</div>
-      <div class="h-sub">¿Cuántos tornillos en la base?</div>
+      <div class="h-sub">Estudios: ¿qué cambia la rigidez?</div>
+      <div class="femctl"><label>Variar <select id="sens-kind">${Object.entries(STUDIES).map(([k, v]) => `<option value="${k}" ${st.sensKind === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select></label></div>
       <div id="sens">${sensView(d)}</div>
       <div class="h-sub">Cálculos rápidos</div>
       ${cases.map(c => card(c)).join('')}
@@ -132,6 +133,7 @@ export function renderSim(host, d, viewer, { close }) {
   sc.style.setProperty('--pct', st.scale + '%');
   sc.oninput = () => { st.scale = Number(sc.value); sc.previousElementSibling.textContent = '× ' + st.scale; sc.style.setProperty('--pct', st.scale + '%'); show3D(d, viewer, cases); };
   host.querySelectorAll('.simcard[data-card]').forEach(el => el.onclick = () => { st.card = st.card === el.dataset.card ? null : el.dataset.card; renderSim(host, d, viewer, { close }); });
+  host.querySelector('#sens-kind').onchange = e => { st.sensKind = e.target.value; const el = host.querySelector('#sens'); el.innerHTML = sensView(d); const b2 = host.querySelector('#sens-run'); if (b2) b2.onclick = () => runSens(d); };
   const sb = host.querySelector('#sens-run');
   if (sb) sb.onclick = () => runSens(d);
   show3D(d, viewer, cases);
@@ -235,36 +237,49 @@ function thermalBars(t) {
   return `<div class="tbars">${list.map(([l, r]) => `<div><span>${l}</span><i style="width:${((r.Ti - min) / (max - min)) * 100}%;background:${r.Ti < 38 ? '#8fd18b' : r.Ti < 42 ? '#ffc14d' : '#ff6b5b'}"></i><b>${f(r.Ti)} °C</b></div>`).join('')}<div class="tlim" style="left:calc(${((40 - min) / (max - min)) * 100}% * .62 + 38%)"></div></div>`;
 }
 
-// ───────── estudio de sensibilidad: tornillos de la base → alabeo en mesa coja ─────────
-const SENS_N = [4, 6, 8, 10, 14, 20, 30];
-const sensKey = d => JSON.stringify({ ...femSpec(d), screws: null });
+// ───────── estudios de sensibilidad (FEM «mesa coja» con una variable cambiada) ─────────
+const STUDIES = {
+  tornillos: { label: 'Tornillos de la base', line: true, vars: [4, 6, 8, 10, 14, 20, 30].map(n => ({ x: n, label: String(n), over: { baseScrews: n } })) },
+  grosor: { label: 'Grosor del tablero', vars: [8, 10, 12, 15, 18].map(t => ({ x: t, label: t + ' mm', over: { t } })) },
+  tablero: { label: 'Tipo de contrachapado', vars: [['chopo', 'Chopo'], ['pino', 'Pino / okumen'], ['abedul', 'Abedul']].map(([k, l]) => ({ x: k, label: l, over: { plyType: k } })) },
+  marco: { label: 'Marco y margen', vars: [['simple', 8, 'Simple · margen 8'], ['simple', 20, 'Simple · margen 20'], ['rebaje', 20, 'Doble · margen 20'], ['rebaje', 40, 'Doble · margen 40'], ['rebaje', 60, 'Doble · margen 60']].map(([fr, mg, l]) => ({ x: l, label: l, over: { frame: fr, margin: mg } })) },
+  base: { label: 'Fijación de la base', vars: [['insertos', 'Tornillos M5'], ['magnetos', 'Imanes + 4 M5']].map(([k, l]) => ({ x: k, label: l, over: { baseFix: k } })) },
+};
+st.sensKind = 'tornillos';
+const sensKey = d => st.sensKind + JSON.stringify(femSpec(d));
 function sensView(d) {
+  const S = STUDIES[st.sensKind];
   const r = st.sens && st.sens.key === sensKey(d) ? st.sens : null;
-  if (!r) return `<p class="note">Repite la simulación «mesa coja» con ${SENS_N.join(', ')} tornillos (malla rápida, ~2 s).</p><button class="btn-sm" id="sens-run">Calcular</button>`;
-  if (r.pts.length < SENS_N.length) return `<div class="progress"><i style="width:${(r.pts.length / SENS_N.length) * 100}%"></i></div><p class="muted">Calculando con ${SENS_N[r.pts.length]} tornillos…</p>`;
-  return lineChart(r.pts, d.params.baseScrews);
+  if (!r) return `<p class="note">Repite la simulación «mesa coja» cambiando ${S.label.toLowerCase()} (${S.vars.map(v => v.label).join(', ')}). Malla rápida, ~${Math.ceil(S.vars.length * 0.4)} s.</p><button class="btn-sm" id="sens-run">Calcular</button>`;
+  if (r.pts.length < S.vars.length) return `<div class="progress"><i style="width:${(r.pts.length / S.vars.length) * 100}%"></i></div><p class="muted">Calculando «${S.vars[r.pts.length].label}»…</p>`;
+  return S.line ? lineChart(r.pts, d.params.baseScrews) : barChart(r.pts, S);
 }
 function runSens(d) {
   if (!worker) worker = new Worker(new URL('./fem.worker.js', import.meta.url), { type: 'module' });
-  const key = sensKey(d);
-  st.sens = { key, pts: [] };
+  const S = STUDIES[st.sensKind];
+  st.sens = { key: sensKey(d), pts: [] };
   const job = ++st.job;
   st.busy = false;
   let i = 0;
   const paint = () => { const el = document.querySelector('#sens'); if (el) el.innerHTML = sensView(window.design || d); };
   paint();
   const next = () => {
-    if (i >= SENS_N.length || job !== st.job) return;
-    const n = SENS_N[i];
-    const spec = femSpec(buildDesign({ ...d.params, baseScrews: n }));
+    if (i >= S.vars.length || job !== st.job) return;
+    const v = S.vars[i];
+    const dv = buildDesign({ ...d.params, ...v.over });
     worker.onmessage = e => {
-      if (e.data.id !== job + ':s' + n || e.data.progress != null) return;
-      st.sens.pts.push([n, -e.data.result.probeU[1], e.data.result.vmax]);
+      if (e.data.id !== job + ':s' + i || e.data.progress != null) return;
+      st.sens.pts.push([v.x, -e.data.result.probeU[1], e.data.result.vmax, v.label, dv.metrics.mass.total]);
       i++; paint(); next();
     };
-    worker.postMessage({ spec, caseId: 'trespatas', h: 45, id: job + ':s' + n });
+    worker.postMessage({ spec: femSpec(dv), caseId: 'trespatas', h: 45, id: job + ':s' + i });
   };
   next();
+}
+function barChart(pts, S) {
+  const max = Math.max(...pts.map(p => p[1]));
+  return `<div class="bars">${pts.map(p => `<div title="${p[3]}: ${f(p[1])} mm · ${f(p[2])} MPa · ${f(p[4])} kg"><span>${p[3]}</span><i style="width:${(p[1] / max) * 100}%"></i><b>${f(p[1])} mm</b><em>${f(p[4])} kg</em></div>`).join('')}</div>
+  <p class="note">Alabeo de la esquina sin apoyo en una mesa coja (menos es mejor) y peso total. ${S.label === 'Grosor del tablero' ? 'La rigidez a torsión crece con el cubo del grosor, pero el peso también sube: 12 mm es un buen compromiso si os parece blanda.' : S.label === 'Fijación de la base' ? 'Los imanes no transmiten cortante: la base deja de trabajar como tapa de la caja.' : ''}</p>`;
 }
 function lineChart(pts, cur) {
   const W = 360, H = 170, L = 36, R = 12, T = 14, B = 30;

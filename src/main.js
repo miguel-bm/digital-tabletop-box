@@ -8,7 +8,7 @@ import { icon, decorate, setupTips } from './icons.js';
 import { renderDecisions } from './decisions.js';
 import { buildBOM } from './bom.js';
 
-const STORE_KEY = 'tabletop.v2';   // v2: trasera curva, tele atornillada a la base, marco simple
+const STORE_KEY = 'tabletop.v3';   // v3: bandeja con la tele pegada a las paredes
 // Limpia parámetros que vienen de fuera (almacenamiento, enlace, archivo): solo claves conocidas,
 // opciones válidas y números dentro de rango.
 function sanitize(src) {

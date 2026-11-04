@@ -10,6 +10,7 @@ digital: la tele en horizontal sobre la mesa, mapas en la pantalla y miniaturas 
 npm install
 npm run dev      # http://localhost:5181
 npm run deploy   # vite build + wrangler deploy (Worker de estáticos)
+npm test         # barrido de todas las opciones + comprobación de solapes
 ```
 
 ## El diseño en una frase
@@ -34,7 +35,9 @@ cuatro tacos encolados al marco. Quitando la base se llega a cables y tele sin t
 - **Planos A3**: conjunto (planta, alzados, sección 1:1), despiece con huecos acotados, optimización
   de corte (tablero y listones), guía de taller con lista de compra y vista explosionada.
   SVG, CSV, **DXF para CNC** o imprimir a PDF.
-- **Montaje** en 14–15 pasos (de medir la tele a la tapa), con la caja boca abajo cuando toca y pasos marcables.
+- **Montaje** en 14–15 pasos (de medir la tele a la tapa), con la caja boca abajo cuando toca, pasos marcables,
+  reproducción automática y tiempos orientativos (≈ 8 h de trabajo + ≈ 5 h de secados). También como
+  **montaje ilustrado** imprimible (una imagen 3D por paso).
 - **Cálculos**:
   - **FEM de láminas** de la caja completa en un Web Worker: mesa coja (3 apoyos), sin base, del asa y
     apoyarse en el canto. Elementos MITC4 + membrana con modos incompatibles, contrachapado con su
@@ -44,6 +47,9 @@ cuatro tacos encolados al marco. Quitando la base se llega a cables y tele sin t
   - **Rápidos**: protector bajo un codo (Navier), travesaños con golpe de 3 g, canto como viga
     compuesta, asa y temperatura interior (red térmica de 2 nudos con tiro natural o ventiladores).
 - **Compartir**: un enlace con todas las medidas para abrir el mismo diseño en otro dispositivo.
+- **Variantes**: guarda versiones con nombre y compáralas con el diseño actual.
+- **Fuente de imagen**: portátil fuera (HDMI), stick o Raspberry Pi dentro (solo sale la corriente).
+- **Rejilla de calibración** (`/rejilla`): ábrela en la tele y comprueba que la casilla mide 25,4 mm.
 
 ## Conclusiones de los cálculos (diseño por defecto)
 

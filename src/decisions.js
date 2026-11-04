@@ -56,6 +56,11 @@ export function renderDecisions(host, params, apply) {
       ['rebaje', 'Galce + taco', 'Más superficie de cola y la esquina se alinea sola. Necesita fresadora o sierra de mesa.', { joint: 'rebaje' }],
       ['dedos', 'Dedos (finger joint)', 'La más bonita a la vista y la más resistente; ideal con CNC o una plantilla en la sierra de mesa. No necesita tacos.', { joint: 'dedos' }],
     ], 'joint'],
+    ['Fuente de imagen', [
+      ['externa', 'Portátil o PC fuera', 'Lo más potente (Foundry con módulos, niebla dinámica). Sale un HDMI por el lateral y el portátil queda junto al máster.', { source: 'externa' }],
+      ['stick', 'Chromecast / Fire TV Stick dentro', 'Solo sale la corriente; se envía la mesa desde el móvil o el portátil por Wi-Fi. Algo de retraso y menos calidad en mapas grandes.', { source: 'stick' }],
+      ['minipc', 'Raspberry Pi dentro', 'Autónoma: abre Owlbear o Foundry en el navegador de la Pi. Suma 5–10 W de calor y necesita ~34 mm bajo la tele.', { source: 'minipc' }],
+    ], 'source'],
     ['Salida de cables', [
       ['pasamuros', 'Pasamuros', 'Dos agujeros con goma o cepillo. Barato; los cables quedan siempre conectados a la tele.', { cable: 'pasamuros' }],
       ['panel', 'Conectores de panel', 'Base IEC y HDMI hembra en el lateral: la caja se lleva sin cables colgando y se enchufa como un aparato. Lo más limpio.', { cable: 'panel' }],

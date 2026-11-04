@@ -414,6 +414,8 @@ tg('#tg-edges', 'edges', v => viewer.setEdges(v));
 tg('#tg-xray', 'xray', v => viewer.setXray(v));
 tg('#tg-section', 'section', v => viewer.setSection(v));
 tg('#tg-lid', 'lidOn', v => { if (v && !params.lid) commit({ ...params, lid: true }); if (v) { ui.hidden = ui.hidden.filter(x => x !== 'tapa'); renderDock(); viewer.setHidden(new Set(ui.hidden)); } viewer.setLid(v); });
+tg('#tg-spin', 'spin', v => { viewer.controls.autoRotate = v; viewer.controls.autoRotateSpeed = 0.8; if (v) { setView('persp'); viewer.autoFit = false; } });
+viewer.controls.autoRotate = !!ui.spin;
 const mapSel = $('#map-style');
 mapSel.value = params.mapStyle;
 mapSel.addEventListener('change', () => commit({ ...params, mapStyle: mapSel.value }));

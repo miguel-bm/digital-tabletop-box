@@ -107,7 +107,7 @@ export function renderSim(host, d, viewer, { close }) {
     <div class="sim-body">
       ${verdict(d, cases, fem || new Map())}
       <div class="h-sub">Simulación FEM de la caja</div>
-      <div class="femcases">${FEM_CASES.map(c => `<button data-fem="${c.id}" class="${st.fem === c.id && st.card === null ? 'on' : ''}">${icon(c.icon)}<span><b>${c.label}</b><small>${c.sub}</small></span></button>`).join('')}</div>
+      <div class="femcases">${FEM_CASES.filter(c => c.id !== 'asa' || d.params.handle !== 'ninguna').map(c => ({ ...c, sub: c.id === 'asa' && d.params.handle === 'laterales' ? 'en plano, asas laterales × 2,5' : c.sub })).map(c => `<button data-fem="${c.id}" class="${st.fem === c.id && st.card === null ? 'on' : ''}">${icon(c.icon)}<span><b>${c.label}</b><small>${c.sub}</small></span></button>`).join('')}</div>
       <div class="femctl">
         <label>Malla <select id="fem-h"><option value="45">rápida · 45 mm</option><option value="35">media · 35 mm</option><option value="25">fina · 25 mm</option></select></label>
         <label>Color <select id="fem-field"><option value="u">desplazamiento</option><option value="s">tensión (von Mises)</option></select></label>
@@ -171,7 +171,8 @@ function runAll(d, done) {
   if (!worker) worker = new Worker(new URL('./fem.worker.js', import.meta.url), { type: 'module' });
   st.busy = true;
   const out = new Map();
-  const ids = [st.fem, ...FEM_CASES.map(c => c.id).filter(i => i !== st.fem)];
+  if (d.params.handle === 'ninguna' && st.fem === 'asa') st.fem = 'trespatas';
+  const ids = [st.fem, ...FEM_CASES.map(c => c.id).filter(i => i !== st.fem && (i !== 'asa' || d.params.handle !== 'ninguna'))];
   let i = 0;
   const job = ++st.job;
   const next = () => {

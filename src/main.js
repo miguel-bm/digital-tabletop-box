@@ -9,6 +9,33 @@ import { renderDecisions } from './decisions.js';
 import { buildBOM } from './bom.js';
 
 const STORE_KEY = 'tabletop.v1';
+// Limpia parámetros que vienen de fuera (almacenamiento, enlace, archivo): solo claves conocidas,
+// opciones válidas y números dentro de rango.
+function sanitize(src) {
+  const out = { ...DEFAULTS };
+  if (!src || typeof src !== 'object') return out;
+  for (const [k, def] of Object.entries(DEFAULTS)) {
+    if (!(k in src)) continue;
+    const v = src[k], pd = PARAM_INDEX[k];
+    if (typeof def === 'boolean') out[k] = v === true || v === 'true';
+    else if (typeof def === 'number') {
+      const n = Number(v);
+      if (!isFinite(n)) continue;
+      if (pd && pd.type === 'select') { if (String(n) in pd.opts) out[k] = n; }
+      else out[k] = pd && pd.min != null ? Math.max(pd.min, Math.min(pd.max, n)) : n;
+    } else if (typeof def === 'string') {
+      const sv = String(v);
+      if (pd && pd.type === 'select') { if (sv in pd.opts) out[k] = sv; }
+      else if (k === 'plyType') { if (sv in PLY) out[k] = sv; }
+      else if (k === 'protector') { if (sv in PROTECTORS) out[k] = sv; }
+      else if (k === 'cover') { if (sv in COVERS) out[k] = sv; }
+      else if (k === 'frameFinish') { if (['negro', 'madera', 'mismo'].includes(sv)) out[k] = sv; }
+      else if (k === 'mapStyle') { if (['mazmorra', 'bosque', 'hex', 'apagada'].includes(sv)) out[k] = sv; }
+      else if (/color/i.test(k)) { if (/^#[0-9a-f]{6}$/i.test(sv)) out[k] = sv; }
+    }
+  }
+  return out;
+}
 const $ = s => document.querySelector(s);
 const el = (tag, attrs = {}, html = '') => { const e = document.createElement(tag); Object.assign(e, attrs); if (html) e.innerHTML = html; return e; };
 const f1 = v => fmt(v).replace('.', ',');
@@ -19,7 +46,7 @@ let params = { ...DEFAULTS };
 let ui = { dimLayers: ['general'], hidden: ['tapa'], explode: 0, edges: true, xray: false, section: false, dims: true, tab: 'acabados', groupsOpen: ['caja', 'marco'], collapsed: [], lidOn: false };
 try {
   const s = JSON.parse(localStorage.getItem(STORE_KEY));
-  if (s) { params = { ...DEFAULTS, ...s.params }; ui = { ...ui, ...s.ui }; }
+  if (s) { params = sanitize(s.params); ui = { ...ui, ...s.ui }; }
 } catch { /* sin almacenamiento */ }
 const urlStep = new URLSearchParams(location.search).get('paso');
 let fromLink = false;
@@ -27,7 +54,7 @@ try {
   const hm = location.hash.match(/d=([\w-]+)/);
   if (hm) {
     const json = decodeURIComponent(escape(atob(hm[1].replace(/-/g, '+').replace(/_/g, '/'))));
-    params = { ...DEFAULTS, ...JSON.parse(json) };
+    params = sanitize(JSON.parse(json));
     fromLink = true;
     history.replaceState(null, '', location.pathname + location.search);
   }
@@ -60,6 +87,7 @@ window.viewer = viewer;
 let design = null, timer = null;
 function schedule() { clearTimeout(timer); timer = setTimeout(rebuild, 30); }
 function rebuild() {
+  if (!params.lid && ui.lidOn) { ui.lidOn = false; $('#tg-lid').classList.remove('on'); viewer.setLid(false); save(); }
   design = buildDesign(params);
   window.design = design;
   viewer.setDesign(design);
@@ -138,8 +166,9 @@ function paramRow(pd) {
     row.append(box);
     const r = el('input', { type: 'range', min: pd.min, max: pd.max, step: pd.step || 1, value: params[pd.k] });
     setPct(r);
-    r.addEventListener('input', () => { setPct(r); n.value = r.value; commit({ ...params, [pd.k]: Number(r.value) }, { record: false }); });
-    r.addEventListener('change', () => { hist.past.push({ ...params }); });
+    let before = null;
+    r.addEventListener('input', () => { if (!before) before = { ...params }; setPct(r); n.value = r.value; commit({ ...params, [pd.k]: Number(r.value) }, { record: false }); });
+    r.addEventListener('change', () => { if (before) { hist.past.push(before); hist.future = []; before = null; } });
     row.append(r);
   }
   return row;
@@ -210,6 +239,7 @@ function renderFinishes() {
   s1.addEventListener('change', () => commit({ ...params, cover: s1.value }));
   const c1 = el('input', { type: 'color', value: params.coverColor });
   c1.addEventListener('input', () => commit({ ...params, coverColor: c1.value }, { record: false }));
+  c1.addEventListener('focus', () => { hist.past.push({ ...params }); hist.future = []; });
   r1.append(s1, c1);
   b1.append(r1, swatchRow(COVER_SWATCHES, params.coverColor, c => commit({ ...params, coverColor: c })));
   b1.append(el('p', { className: 'note' }, coverNote(params.cover)));
@@ -222,6 +252,7 @@ function renderFinishes() {
   s2.addEventListener('change', () => commit({ ...params, frameFinish: s2.value }));
   const c2 = el('input', { type: 'color', value: params.frameColor });
   c2.addEventListener('input', () => commit({ ...params, frameColor: c2.value }, { record: false }));
+  c2.addEventListener('focus', () => { hist.past.push({ ...params }); hist.future = []; });
   r2.append(s2, c2);
   b2.append(r2, swatchRow(FRAME_SWATCHES, params.frameColor, c => commit({ ...params, frameColor: c, frameFinish: 'negro' })));
   b2.append(el('p', { className: 'note' }, 'El borde que rodea la imagen conviene que sea oscuro y mate: un marco claro o brillante refleja la pantalla y cansa la vista. Los labios interiores se pintan siempre de negro.'));
@@ -412,6 +443,7 @@ function openGuide(i = 0) {
 }
 function closeGuide() {
   guide.on = false;
+  if (location.search.includes('paso=')) history.replaceState(null, '', location.pathname);
   document.body.classList.remove('guiding');
   $('#guide').hidden = true;
   viewer.setHighlight(null); viewer.setFlip && viewer.setFlip(false);
@@ -512,7 +544,7 @@ $('#btn-png').addEventListener('click', () => download('tablero-digital.png', vi
 $('#btn-export').addEventListener('click', () => download('tablero-digital.json', JSON.stringify({ params }, null, 2), 'application/json'));
 $('#file-import').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
-  try { const j = JSON.parse(await f.text()); commit({ ...DEFAULTS, ...(j.params || j) }); toast('Diseño cargado'); } catch { toast('No se pudo leer el archivo'); }
+  try { const j = JSON.parse(await f.text()); commit(sanitize(j.params || j)); toast('Diseño cargado'); } catch { toast('No se pudo leer el archivo'); }
 });
 $('#btn-reset').addEventListener('click', () => { commit({ ...DEFAULTS }); toast('Valores por defecto'); });
 $('#btn-share').addEventListener('click', async () => {
@@ -605,6 +637,6 @@ renderParams(false);
 renderSide();
 renderReadouts();
 updateInsets();
-if (urlStep) openGuide(Number(urlStep) - 1);
+if (urlStep && Number.isFinite(Number(urlStep))) openGuide(Math.max(0, Number(urlStep) - 1));
 if (fromLink) { save(); toast('Diseño cargado desde el enlace'); }
 try { if (!localStorage.getItem('tabletop.seenHelp')) { helpEl.hidden = false; localStorage.setItem('tabletop.seenHelp', '1'); } } catch { /* nada */ }

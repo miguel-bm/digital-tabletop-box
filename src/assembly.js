@@ -36,7 +36,7 @@ export function planAssembly(d) {
   add({
     key: 'caja', title: 'Cerrar el perímetro', flip: false, explode: 0.15,
     done: [...byStep('listones')], now: [...walls, ...byStep('caja').filter(i => !walls.includes(i))],
-    text: `${p.joint === 'dedos' ? 'Encola los dedos y cierra las cuatro esquinas con sargentos.' : p.joint === 'rebaje' ? 'Las paredes largas llevan un galce de ' + f1(p.t / 2) + ' mm en cada extremo; encaja ahí las laterales con cola.' : 'Unión a tope: las paredes largas pasan por delante de las laterales.'} ${p.cornerBlocks ? 'Pega los cuatro tacos de esquina y atornilla cada pared a ellos desde fuera (dos tornillos por cara).' : ''} ${p.handle === 'maleta' ? 'Encola también la contraplaca del asa detrás de sus dos taladros.' : ''} Comprueba la escuadra midiendo las dos diagonales: deben ser iguales (±1 mm) antes de que fragüe.`,
+    text: `${p.joint === 'dedos' ? 'Encola los dedos y cierra las cuatro esquinas con sargentos.' : p.joint === 'rebaje' ? 'Las paredes largas llevan en cada extremo un galce de ' + p.t + ' × ' + f1(p.t / 2) + ' mm (ancho × fondo) por la cara interior; encaja ahí las laterales con cola.' : 'Unión a tope: las paredes largas pasan por delante de las laterales.'} ${p.cornerBlocks ? 'Pega los cuatro tacos de esquina y atornilla cada pared a ellos desde fuera (dos tornillos por cara).' : ''} ${p.handle === 'maleta' ? 'Encola también la contraplaca del asa detrás de sus dos taladros.' : ''} Comprueba la escuadra midiendo las dos diagonales: deben ser iguales (±1 mm) antes de que fragüe.`,
     access: `Diagonal teórica: ${f1(Math.hypot(m.X, m.Z))} mm. Trabaja sobre una superficie plana para que la caja no quede alabeada.`,
     hw: ['Cola D3', '4 sargentos', 'Tornillo 3,5×25'],
   });

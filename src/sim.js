@@ -245,6 +245,6 @@ export function femSpec(d) {
   return {
     X: m.X, Z: m.Z, t: p.t, y0: m.y0, yF: m.yF, layers: m.twoLayer ? 2 : 1, op1: m.op1, op2: m.op2,
     screws: m.screwPts, ply: PLY[p.plyType], feet: [...fc, ...rest], hangers: hangers.length ? hangers : [[-200, -Zm], [200, -Zm], [-200, Zm], [200, Zm]],
-    handleX: p.handle === 'maleta' ? [-60, 60] : [-70, 70], baseOn: true, tvKg: p.tvKg, protKg: m.mass.protector + m.mass.cover, mount: p.mount, foamPts,
+    handleX: p.handle === 'maleta' ? [-60, 60] : [-70, 70], handleMode: p.handle, baseOn: true, tvKg: p.tvKg, protKg: m.mass.protector + m.mass.cover, mount: p.mount, foamPts,
   };
 }

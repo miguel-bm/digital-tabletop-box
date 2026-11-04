@@ -166,7 +166,7 @@ export class MaterialFactory {
         } else delete opts.bumpMap;
         return new Std(opts);
       });
-      case 'acrylic': return this.key('acrylic', () => new THREE.MeshPhysicalMaterial({ color: '#e8f4ff', roughness: 0.04, metalness: 0, transparent: true, opacity: 0.07, ...(Q.physical ? { clearcoat: 1, clearcoatRoughness: 0.02 } : {}), depthWrite: false }));
+      case 'acrylic': return this.key('acrylic', () => new THREE.MeshPhysicalMaterial({ color: '#e8f4ff', roughness: 0.08, metalness: 0, transparent: true, opacity: 0.035, envMapIntensity: 0.25, ...(Q.physical ? { clearcoat: 0.5, clearcoatRoughness: 0.05 } : {}), depthWrite: false }));
       case 'glass': return this.key('glass', () => [
         new THREE.MeshPhysicalMaterial({ color: '#e6f6ee', roughness: 0.02, transparent: true, opacity: 0.16, ...(Q.physical ? { clearcoat: 1 } : {}), depthWrite: false }),
         new THREE.MeshStandardMaterial({ color: '#7fb9a0', roughness: 0.1, transparent: true, opacity: 0.85 }),

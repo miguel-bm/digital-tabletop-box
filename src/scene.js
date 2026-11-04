@@ -184,7 +184,7 @@ export class Viewer {
     const mapTex = new THREE.CanvasTexture(mapCanvas(p.mapStyle, d.metrics.inchPx));
     mapTex.colorSpace = THREE.SRGBColorSpace; mapTex.anisotropy = 8;
     this.mapTex && this.mapTex.dispose(); this.mapTex = mapTex;
-    const scrMat = new THREE.MeshPhysicalMaterial({ color: 0x000000, emissive: 0xffffff, emissiveMap: mapTex, emissiveIntensity: p.mapStyle === 'apagada' ? 0 : 0.95, roughness: 0.25, ...(Q.physical ? { clearcoat: 0.6, clearcoatRoughness: 0.15 } : {}) });
+    const scrMat = new THREE.MeshPhysicalMaterial({ color: 0x000000, emissive: 0xffffff, emissiveMap: mapTex, emissiveIntensity: p.mapStyle === 'apagada' ? 0 : 0.95, roughness: 0.45, envMapIntensity: 0.35, ...(Q.physical ? { clearcoat: 0.35, clearcoatRoughness: 0.2 } : {}) });
     scrMat.clippingPlanes = this.mats.clip;
     const sw = tv.scr.x1 - tv.scr.x0, sh = tv.scr.z1 - tv.scr.z0;
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), scrMat);
@@ -261,7 +261,8 @@ export class Viewer {
     } else if (f.kind === 'ir') {
       add(new THREE.CylinderGeometry(3, 3, 1, 12), new THREE.MeshStandardMaterial({ color: 0x3a0d0d, emissive: 0x550000, roughness: 0.3 }), x, y + 0.2, z);
     } else if (f.kind === 'latch') {
-      add(new RoundedBoxGeometry(36, 44, 8, 2, 2), m.get('metal'), x, y, z + f.s * 4);
+      if (f.axis === 'x') add(new RoundedBoxGeometry(8, 44, 36, 2, 2), m.get('metal'), x + f.s * 4, y, z);
+      else add(new RoundedBoxGeometry(36, 44, 8, 2, 2), m.get('metal'), x, y, z + f.s * 4);
     }
     grp.traverse(o => { if (o.isMesh) o.userData.fixture = f; });
     this.fx.add(grp);
@@ -386,7 +387,13 @@ export class Viewer {
     else if (name === 'side') { pos = new THREE.Vector3(3, cy, 0); }
     else if (name === 'section') { ortho = false; pos = new THREE.Vector3(0.55 * span, 0.25 * span, 0.75 * span); target.set(0.25 * span, cy, 0); }
     this.useCamera(ortho ? this.ortho : this.persp);
-    if (ortho) { this.orthoSpan = name === 'top' ? Math.max(M.outer.Z * 1.25, M.outer.X * 0.9 * this.host.clientHeight / this.host.clientWidth) * S : M.outer.X * 0.72 * S * this.host.clientHeight / this.host.clientWidth + 0.2; this.updateOrtho(); }
+    if (ortho) {
+      const W = this.host.clientWidth, Hh = this.host.clientHeight, [l, r, b = 0] = this.insets || [0, 0, 0];
+      const aw = Math.max(150, W - l - r - 48), ah = Math.max(150, Hh - 76 - 104 - b - 32);
+      const sx = (name === 'side' ? M.outer.Z : M.outer.X) + 140, sy = name === 'top' ? M.outer.Z + 140 : M.H + 260;
+      this.orthoSpan = Math.max(sx / aw, sy / ah) * Hh * S;
+      this.updateOrtho();
+    }
     this.camera.up.copy(up);
     if (!animate) { this.camera.position.copy(pos); this.controls.target.copy(target); this.controls.update(); return; }
     this.camTween = { from: this.camera.position.clone(), to: pos, tf: this.controls.target.clone(), tt: target, t: 0 };

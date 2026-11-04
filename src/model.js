@@ -85,10 +85,16 @@ export function buildDesign(p) {
   const wallNotches = { back: [], front: [], left: [], right: [] };
   const portWall = portRight ? 'right' : 'left';
   const midY = (a, b) => (a + b) / 2;
+  const dishD = 28;
+  const vxEarly = tv.cx + p.vesaDx;
+  const hangIn = p.mount === 'vesa' ? Math.min(...[vxEarly - p.vesa / 2, vxEarly + p.vesa / 2].map(x => Math.abs(x) - p.railW / 2)) - 1 : 200;
+  const handleHalf = Math.max(30, Math.min(80, hangIn));
+  const boltX = Math.min(60, handleHalf - 14);
+  if ((p.handle === 'maleta' || p.handle === 'embutida') && hangIn < 45) warn('warn', `El asa queda encajonada entre los tacos de los travesaños VESA (solo hay ${r1(2 * hangIn)} mm libres en el centro del fondo). Mueve el VESA o usa asas laterales.`);
 
   // salida de cables (en la pared lateral del lado de conexiones; u = z)
   const cy = y0 + t + (wallH - t) * p.cableY;
-  const cz = [tv.cz - innerZ * 0.18, tv.cz + innerZ * 0.12];
+  const cz = p.handle === 'laterales' ? [tv.cz - innerZ * 0.33, tv.cz + innerZ * 0.31] : [tv.cz - innerZ * 0.18, tv.cz + innerZ * 0.12];
   const cableZones = [];
   if (p.cable === 'pasamuros') {
     cz.forEach(z => { wallHoles[portWall].push({ circle: [z, cy, p.cableDia / 2], tag: 'Pasamuros Ø' + p.cableDia }); cableZones.push([z - p.cableDia / 2, z + p.cableDia / 2]); });
@@ -121,8 +127,7 @@ export function buildDesign(p) {
     for (let i = 0; i < n; i++) {
       const x = tv.cx - span / 2 + (span * (i + 0.5)) / n;
       if (p.fans && fanX.some(f => Math.abs(f - x) < 45)) continue;
-      if (p.handle === 'maleta' && Math.abs(x) < 90) continue;
-      if (p.handle === 'embutida' && Math.abs(x) < 100) continue;
+      if ((p.handle === 'maleta' || p.handle === 'embutida') && Math.abs(x) < handleHalf + 12) continue;
       wallHoles.back.push({ slot: [x - sw / 2, yv0, x + sw / 2, yv0 + sh], tag: 'Ranura ventilación' });
     }
   }
@@ -140,13 +145,13 @@ export function buildDesign(p) {
       });
     }
   }
-  // asas
-  const dishD = 28;
+  // asas: la contraplaca/cazo va entre los tacos colgadores de los travesaños VESA
   if (p.handle === 'maleta') {
-    [-60, 60].forEach(x => wallHoles.back.push({ circle: [x, midY(battenTop, yF), 3.2], tag: 'Taladro Ø6,5 asa' }));
+    [-boltX, boltX].forEach(x => wallHoles.back.push({ circle: [x, midY(battenTop, yF), 3.2], tag: 'Taladro Ø6,5 asa' }));
   } else if (p.handle === 'embutida') {
     const hh = Math.min(56, wallH - 34);
-    wallHoles.back.push({ rect: [-70, midY(battenTop, yF) - hh / 2, 70, midY(battenTop, yF) + hh / 2], tag: 'Hueco asa embutida 140×' + r1(hh) });
+    const hw2 = Math.min(70, handleHalf - 6);
+    wallHoles.back.push({ rect: [-hw2, midY(battenTop, yF) - hh / 2, hw2, midY(battenTop, yF) + hh / 2], tag: 'Hueco asa embutida ' + r1(2 * hw2) + '×' + r1(hh) });
     if (g < dishD + 2) warn('warn', `El cazo del asa embutida (${dishD} mm) choca con la tele: el margen interior es de ${r1(g)} mm. Sube el margen a ${dishD + 3} mm o usa asa de maleta.`);
   } else if (p.handle === 'laterales') {
     const hh = Math.min(50, wallH - 34);
@@ -174,7 +179,7 @@ export function buildDesign(p) {
       const outer = side === 'back' ? [z0, z0 + t / 2] : [z1 - t / 2, z1];
       return [
         { plane: 'XY', rect: [xo0, y0, xo1, yF], t: outer, holes: wallHoles[side], notches: wallNotches[side] },
-        { plane: 'XY', rect: [xo0 + t / 2, y0, xo1 - t / 2, yF], t: inner, holes: wallHoles[side], notches: wallNotches[side] },
+        { plane: 'XY', rect: [xo0 + t, y0, xo1 - t, yF], t: inner, holes: wallHoles[side], notches: wallNotches[side] },
       ];
     }
     return [{ plane: 'XY', rect: [xo0, y0, xo1, yF], t: [z0, z1], holes: wallHoles[side], notches: longNotch(side) }];
@@ -325,9 +330,10 @@ export function buildDesign(p) {
   // refuerzo interior del asa
   if (p.handle === 'maleta') {
     const d = Math.min(bw, g - 1);
+    const hb = handleHalf;
     add({ id: 'A1', key: 'handleBlock', name: 'Contraplaca del asa', role: 'taco', mat: 'batten', step: 'caja',
-      solids: [{ plane: 'XY', rect: [-80, battenTop, 80, yF], t: [zi0, zi0 + d] }],
-      cut: { L: 160, W: r1(yF - battenTop), T: r1(d), stock: 'taco', notes: '2 taladros Ø6,5 pasantes + tuercas de garra M6' }, explode: [0, 30, -90] });
+      solids: [{ plane: 'XY', rect: [-hb, battenTop, hb, yF], t: [zi0, zi0 + d] }],
+      cut: { L: r1(2 * hb), W: r1(yF - battenTop), T: r1(d), stock: 'taco', notes: '2 taladros Ø6,5 pasantes + tuercas de garra M6' }, explode: [0, 30, -90] });
   }
 
   // base
@@ -348,6 +354,7 @@ export function buildDesign(p) {
           let x = e.a[0] + (e.b[0] - e.a[0]) * d / L, z = e.a[1] + (e.b[1] - e.a[1]) * d / L;
           // evita los huecos del listón
           if (railOverlapsBatten && Math.abs(e.a[1] - e.b[1]) < 1) railGaps.forEach(([g0, g1]) => { if (x > g0 - 10 && x < g1 + 10) x = (x - g0 < g1 - x) ? g0 - 14 : g1 + 14; });
+          if (p.cable === 'ranura' && Math.abs(e.a[0] - e.b[0]) < 1 && Math.sign(e.a[0]) === (portRight ? 1 : -1)) cableZones.forEach(([g0, g1]) => { if (z > g0 - 10 && z < g1 + 10) z = (z - g0 < g1 - z) ? g0 - 14 : g1 + 14; });
           screwPts.push([x, z]); break;
         }
         d -= L;
@@ -377,7 +384,7 @@ export function buildDesign(p) {
     const gy = yF - gk, gw = 8;
     const gr = [tv.x0 + 1, tv.z0 + 1, tv.x1 - 1, tv.z1 - 1];
     add({ id: 'G1', key: 'gasket', name: 'Burlete EPDM ' + gw + '×' + gk, role: 'burlete', mat: 'foam', step: 'burlete', cut: { L: r1(2 * (gr[2] - gr[0] + gr[3] - gr[1])), W: gw, T: gk, stock: 'espuma', notes: 'Cinta adhesiva en rollo' },
-      solids: [{ plane: 'XZ', rect: gr, t: [gy, yF], holes: [{ rect: [gr[0] + gw, gr[1] + gw, gr[2] - gw, gr[3] - gw] }] }], explode: [0, 150, 0] });
+      solids: [{ plane: 'XZ', rect: gr, t: [gy, yF], notches: [[gr[0] + gw, gr[1] + gw, gr[2] - gw, gr[3] - gw], ...(irCovered ? [[irPos[0] - 10, gr[3] - gw - 1, irPos[0] + 10, gr[3] + 1]] : [])] }], explode: [0, 150, 0] });
   }
 
   // ── revestimiento exterior ──
@@ -410,11 +417,11 @@ export function buildDesign(p) {
     hw.push({ g: 'Base', name: `Pata de goma Ø22 × ${p.footH} con tornillo`, qty: nf, unit: 0.5 });
   }
   if (p.handle === 'maleta') {
-    fixtures.push({ kind: 'handle', pos: [0, midY(battenTop, yF), zo0 - ct], span: 120, step: 'remate', follow: 'W1' });
-    hw.push({ g: 'Transporte', name: 'Asa de maleta / amplificador 120 mm entre ejes', qty: 1, unit: 9 });
+    fixtures.push({ kind: 'handle', pos: [0, midY(battenTop, yF), zo0 - ct], span: 2 * boltX, step: 'remate', follow: 'W1' });
+    hw.push({ g: 'Transporte', name: `Asa de maleta / amplificador ${Math.round(2 * boltX)} mm entre ejes`, qty: 1, unit: 9 });
     hw.push({ g: 'Transporte', name: 'Tornillo M6 × 40 + tuerca de garra (asa)', qty: 2, unit: 0.6 });
   } else if (p.handle === 'embutida') {
-    fixtures.push({ kind: 'dish', pos: [0, midY(battenTop, yF), zo0 - ct], w: 160, h: Math.min(76, wallH - 14), d: dishD, axis: 'z', sgn: 1, step: 'remate' });
+    fixtures.push({ kind: 'dish', pos: [0, midY(battenTop, yF), zo0 - ct], w: Math.min(160, 2 * handleHalf + 8), h: Math.min(76, wallH - 14), d: dishD, axis: 'z', sgn: 1, step: 'remate' });
     hw.push({ g: 'Transporte', name: 'Asa embutida tipo flight-case (cazo ' + dishD + ' mm)', qty: 1, unit: 12 });
   } else if (p.handle === 'laterales') {
     fixtures.push({ kind: 'dish', pos: [xo0 - ct, midY(battenTop, yF), 0], w: 140, h: Math.min(70, wallH - 14), d: dishD, axis: 'x', sgn: 1, step: 'remate' });
@@ -464,9 +471,9 @@ export function buildDesign(p) {
   }
 
   if (p.lid) {
-    const lc = 1.5, lt = t, sk = p.lidSkirt;
+    const lc = 1.5 + (p.corners ? 2 : 0), lt = t, sk = p.lidSkirt;
     const L0 = [-outer.X / 2 - lc - t, -outer.Z / 2 - lc - t, outer.X / 2 + lc + t, outer.Z / 2 + lc + t];
-    const ly = y0 + outer.H + 2;
+    const ly = y0 + outer.H + 11;   // 10 mm de espuma bajo el panel
     const [sx0, sz0, sx1, sz1] = L0;
     const lid = (id, key, name, solid) => add({ id, key, name, role: 'tapa', mat: 'cover', step: 'tapa', lid: true, solids: [solid], explode: [0, 160, 0] });
     lid('T1', 'lidTop', 'Tapa · panel', { plane: 'XZ', rect: L0, t: [ly, ly + lt] });
@@ -475,9 +482,11 @@ export function buildDesign(p) {
     lid('T4', 'lidL', 'Tapa · faldón corto izq.', { plane: 'YZ', rect: [sz0 + t, ly - sk, sz1 - t, ly], t: [sx0, sx0 + t] });
     lid('T5', 'lidR', 'Tapa · faldón corto der.', { plane: 'YZ', rect: [sz0 + t, ly - sk, sz1 - t, ly], t: [sx1 - t, sx1] });
     const nl = Number(p.latches);
-    const lx = nl === 2 ? [0] : [-outer.X * 0.28, outer.X * 0.28];
-    lx.forEach(x => [-1, 1].forEach(s => fixtures.push({ kind: 'latch', pos: [x, ly - sk, s * (sz1)], s, step: 'tapa', lid: true })));
-    hw.push({ g: 'Tapa', name: 'Cierre de palanca de maleta', qty: lx.length * 2, unit: 3.5 });
+    const latchPts = [];
+    if (nl === 2 && p.handle !== 'laterales') [-1, 1].forEach(s => latchPts.push({ pos: [s * sx1, ly - sk, 0], axis: 'x', s }));
+    else (nl === 2 ? [0.3] : [-0.28, 0.28]).forEach(fx => [-1, 1].forEach(s => latchPts.push({ pos: [fx * outer.X * (nl === 2 ? s : 1), ly - sk, s * sz1], axis: 'z', s })));
+    latchPts.forEach(lp => fixtures.push({ kind: 'latch', ...lp, step: 'tapa', lid: true }));
+    hw.push({ g: 'Tapa', name: 'Cierre de palanca de maleta', qty: latchPts.length, unit: 3.5 });
     hw.push({ g: 'Tapa', name: 'Espuma interior de la tapa 10 mm', qty: 1, unit: 8 });
     if (sk > H - 10) warn('warn', 'El faldón de la tapa es más alto que la caja.');
   }
@@ -528,7 +537,7 @@ export function buildDesign(p) {
   if (!p.vents && !p.fans) warn('warn', 'Sin rejillas ni ventiladores la tele (≈ 54 W) se calienta dentro de la caja. Activa al menos las rejillas.');
   if (p.gasket === 0) warn('info', 'Sin burlete, el marco apoya directamente en el bisel de la tele: puede marcarlo o vibrar.');
   if (wallH - t - bh < 30) warn('warn', 'Las paredes quedan muy bajas para los pasacables y las rejillas.');
-  if (X > 2440 || Z > 1220) warn('error', 'Alguna pieza no cabe en un tablero estándar de 2440 × 1220.');
+  if (X > 2420 || Z > 1200 || (p.lid && Math.min(X, Z) + 2 * t + 10 > 1200)) warn('error', 'Alguna pieza no cabe en un tablero estándar de 2440 × 1220 (con 10 mm de margen).');
 
   const px = 1920 / p.screenW; // px por mm
   const metrics = {

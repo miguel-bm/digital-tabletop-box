@@ -152,7 +152,7 @@ function grid(a, b, breaks, h) {
 }
 
 export function buildMesh(spec, h = 35) {
-  const { X, Z, t, y0, yF, layers, op1, op2, screws, ply, feet, hangers, handleX, baseOn, tvKg, protKg, mount, foamPts } = spec;
+  const { X, Z, t, y0, yF, layers, op1, op2, screws, ply, feet, hangers, handleX, baseOn, tvKg, protKg, mount, foamPts, handleMode } = spec;
   const Xm = X / 2 - t / 2, Zm = Z / 2 - t / 2;
   const yb = y0 + t / 2, yf = yF + (layers * t) / 2;
   const xb = [op1[0], op1[2], ...(op2 ? [op2[0], op2[2]] : []), ...hangers.map(p => p[0]), ...handleX];
@@ -210,7 +210,7 @@ export function buildMesh(spec, h = 35) {
     const a = nearest(px, yb, pz, 'b'), b = nearest(px, yb, pz, '');
     springs.push({ a, b, k: 1500 });   // N/mm por tornillo (deslizamiento en madera)
   });
-  return { nodes, els, springs, key, Xm, Zm, yb, yf, nearest, feet: feet.map(([x, z]) => baseOn ? nearest(x, yb, z, 'b') : nearest(Math.sign(x) * Xm, yb, Math.sign(z) * Zm)), hangers: hangers.map(([x, z]) => nearest(x, yf, Math.sign(z) * Zm)), foamPts: (foamPts || []).map(([x, z]) => baseOn ? nearest(x, yb, z, 'b') : -1), handle: (() => { const out = []; key.forEach((idx, k) => { if (k.startsWith('b')) return; const q = nodes[idx]; if (Math.abs(q[2] + Zm) < 0.1 && Math.abs(q[0]) <= Math.max(...handleX.map(Math.abs)) + 20 && q[1] > yb + 1 && q[1] < yf - 1) out.push(idx); }); return out.length ? out : handleX.map(x => nearest(x, (yb + yf) / 2, -Zm)); })(), tvKg, protKg, mount, op1 };
+  return { nodes, els, springs, key, Xm, Zm, yb, yf, nearest, feet: feet.map(([x, z]) => baseOn ? nearest(x, yb, z, 'b') : nearest(Math.sign(x) * Xm, yb, Math.sign(z) * Zm)), hangers: hangers.map(([x, z]) => nearest(x, yf, Math.sign(z) * Zm)), foamPts: (foamPts || []).map(([x, z]) => baseOn ? nearest(x, yb, z, 'b') : -1), handle: (() => { const out = []; key.forEach((idx, k) => { if (k.startsWith('b')) return; const q = nodes[idx]; if (handleMode === 'laterales') { if (Math.abs(Math.abs(q[0]) - Xm) < 0.1 && Math.abs(q[2]) <= 70 && q[1] > yb + 1 && q[1] < yf - 1) out.push(idx); return; } if (Math.abs(q[2] + Zm) < 0.1 && Math.abs(q[0]) <= Math.max(...handleX.map(Math.abs)) + 20 && q[1] > yb + 1 && q[1] < yf - 1) out.push(idx); }); return out.length ? out : handleX.map(x => nearest(x, (yb + yf) / 2, -Zm)); })(), tvKg, protKg, mount, op1 };
 }
 
 // ───────── ensamblado y solución ─────────
@@ -352,6 +352,11 @@ export function runFem(spec, caseId, h, onProgress) {
     lc.fix.push({ n: a, c: 1 }, { n: b, c: 1 }, { n: c, c: 1 }, { n: a, c: 0 }, { n: a, c: 2 }, { n: b, c: 2 });
     tvLoad([0, -1, 0], 1);
     probe = d; label = 'Hundimiento de la esquina sin apoyo';
+  } else if (caseId === 'asa' && spec.handleMode === 'laterales') {
+    lc.g = { dir: [0, -1, 0], factor: 2.5 };
+    mesh.handle.forEach(fixAll);
+    tvLoad([0, -1, 0], 2.5);
+    probe = spec.baseOn ? mesh.nearest(0, mesh.yb, 0, 'b') : mesh.nearest(0, mesh.yf, mesh.Zm); label = 'Flecha en el centro de la base';
   } else if (caseId === 'asa') {
     lc.g = { dir: [0, 0, 1], factor: 2.5 };
     mesh.handle.forEach(fixAll);

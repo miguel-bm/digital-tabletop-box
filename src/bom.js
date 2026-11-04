@@ -9,7 +9,10 @@ export function buildBOM(d) {
   const u = boardUsage(d);
   const items = [];
   items.push({ g: 'Material', name: `Tablero contrachapado ${p.t} mm (2440×1220)`, qty: u.boards, unit: p.plyType === 'abedul' ? 75 : 45, own: true });
-  items.push({ g: 'Material', name: `Listón de pino ${p.battenW}×${p.battenH}${p.mount === 'vesa' ? ` y taco ${p.railW}×${p.railH}` : ''}`, qty: Math.ceil(u.battenM), unit: 1.6, u: 'm', own: true });
+  // listones y tacos por sección
+  const bySec = {};
+  d.pieces.forEach(pc => { if (!pc.cut || pc.cut.stock !== 'taco') return; const a = Math.min(pc.cut.W, pc.cut.T), c2 = Math.max(pc.cut.W, pc.cut.T); const k = `${Math.round(a)}×${Math.round(c2)}`; bySec[k] = (bySec[k] || 0) + (pc.cut.L + 5) / 1000; });
+  Object.entries(bySec).sort((x, y) => y[1] - x[1]).forEach(([sec, len]) => items.push({ g: 'Material', name: `Listón / taco de pino ${sec}`, qty: Math.ceil(len * 10) / 10, unit: 1.6, u: 'm', own: true }));
   const prot = d.pieces.find(x => x.role === 'protector');
   if (prot) { const c = prot.cut; items.push({ g: 'Material', name: `${PROTECTORS[p.protector].label} a medida ${String(c.L).replace('.', ',')}×${String(c.W).replace('.', ',')}`, qty: 1, unit: Math.round(c.L * c.W * 1e-6 * PROT_EUR_M2[p.protector]) }); }
   d.hw.forEach(h => items.push({ ...h }));

@@ -29,7 +29,7 @@ function notesFor(pc) {
   const tags = new Map();
   pc.solids.forEach(s => (s.holes || []).forEach(h => { if (h.tag) tags.set(h.tag, (tags.get(h.tag) || 0) + 1); }));
   pc.solids.forEach(s => (s.notches || []).forEach(() => tags.set('Muesca en canto', (tags.get('Muesca en canto') || 0) + 1)));
-  if (pc.role === 'marco') tags.set('Ventana interior', 1);
+  if (pc.role === 'marco' && pc.solids[0].holes && pc.solids[0].holes.some(h => h.rect && !h.tag)) tags.set('Ventana interior', 1);
   return [...tags.entries()].map(([t, n]) => (n > 1 ? `${n}× ` : '') + t).join(' · ');
 }
 

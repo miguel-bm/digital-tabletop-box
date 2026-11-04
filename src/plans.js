@@ -425,7 +425,7 @@ function sheetsMontaje(d, n0, total, shots) {
 function sheetRevestimiento(d, n, total) {
   const p = d.params, m = d.metrics;
   let b = text(16, 20, 'PATRÓN DEL REVESTIMIENTO', 5, 'font-weight="700"');
-  if (p.cover === 'ninguno') return sheet('Revestimiento', 'Sin revestimiento', n, total, b + text(16, 34, 'El diseño no lleva revestimiento: madera vista (aceite o barniz).', 3.4), d);
+  if (p.cover === 'ninguno') return sheet('Forro', 'Sin revestimiento', n, total, b + text(16, 34, 'El diseño no lleva revestimiento: madera vista (aceite o barniz).', 3.4), d);
   const ov = 20;                                       // solape arriba y abajo
   const H0 = m.yTop - m.y0;                            // alto de las paredes + marco
   const segs = [m.X / 2, m.Z, m.X, m.Z, m.X / 2];      // empieza en el centro de la pared del fondo
@@ -464,7 +464,7 @@ function sheetRevestimiento(d, n, total) {
   }
   const area = (Ltot * (H0 + 2 * ov) + (p.frameFinish === 'mismo' ? (m.X + 40) * (m.Z + 40) : 0)) * 1e-6;
   b += text(16, Math.min(H - 36, hy + 6), `Material: ${f1(area)} m² netos. Los rollos son de 1,37–1,40 m de ancho: sin juntas necesitas ${f1(Math.ceil((Ltot + 100) / 100) / 10)} m lineales; cortando la tira en 3 trozos con las juntas en esquinas, basta con ${f1(Math.ceil(((H0 + 2 * ov) * 3 + (p.frameFinish === 'mismo' ? m.Z + 40 : 0) + 100) / 100) / 10)} m.`, 2.8, 'font-weight="600"');
-  return sheet('Revestimiento', 'Tira continua con pliegues y cortes de esquina', n, total, b, d);
+  return sheet('Forro', 'Revestimiento: tira continua con pliegues y cortes de esquina', n, total, b, d);
 }
 
 // ───────── plantillas 1:1 por trozos de A3 ─────────
@@ -508,7 +508,7 @@ function sheetsPlantillas(d) {
       // marcas de empalme y regla
       [[ox, oy], [ox + PW, oy], [ox, oy + PH], [ox + PW, oy + PH]].forEach(([x, y]) => (b += `<path d="M${x - 4} ${y}h8M${x} ${y - 4}v8" stroke="${INK}" stroke-width=".3"/>`));
       b += `<path d="M${ox} ${H - 26}h100" stroke="${INK}" stroke-width=".5"/>` + [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(k => `<path d="M${ox + k} ${H - 26}v${k % 50 ? -2 : -4}" stroke="${INK}" stroke-width=".3"/>`).join('') + text(ox + 102, H - 25, '100 mm', 2.6);
-      out.push(sheet('Plantilla 1:1', `${pc.id} · trozo ${j * nx + i + 1}/${nx * ny}`, out.length + 1, 0, b, d));
+      out.push(sheet('Plantilla', `${pc.id} · trozo ${j * nx + i + 1}/${nx * ny}`, out.length + 1, 0, b, d));
     }
   });
   return out.map((s, k) => s.replace(/Hoja (\d+)\/0/, `Hoja ${k + 1}/${out.length}`));

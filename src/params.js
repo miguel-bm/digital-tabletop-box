@@ -26,7 +26,7 @@ export const DEFAULTS = {
   baseFix: 'insertos', baseScrews: 14, baseVents: true,
 
   // ── cables, aire y sonido ──
-  cable: 'pasamuros', cableDia: 30, cableY: 0.5,
+  source: 'externa', cable: 'pasamuros', cableDia: 30, cableY: 0.5,
   vents: true, ventCount: 6, fans: false, speakerSlots: true,
 
   // ── transporte ──
@@ -120,6 +120,7 @@ export const SCHEMA = [
     { k: 'baseVents', l: 'Agujeros de ventilación en la base', type: 'bool' },
   ] },
   { id: 'cables', label: 'Cables, aire y sonido', icon: 'plug', params: [
+    { k: 'source', l: 'Fuente de imagen', type: 'select', opts: { externa: 'Portátil / PC fuera (sale HDMI + corriente)', stick: 'Chromecast / Fire TV Stick dentro (solo corriente)', minipc: 'Mini-PC (Raspberry Pi) dentro (solo corriente)' } },
     { k: 'cable', l: 'Salida de cables', type: 'select', opts: { pasamuros: '2 pasamuros redondos', panel: 'Conectores de panel (HDMI + IEC)', ranura: 'Ranura abierta al canto inferior' } },
     { k: 'cableDia', l: 'Diámetro pasamuros', u: 'mm', min: 16, max: 50, step: 1 },
     { k: 'cableY', l: 'Altura relativa de la salida', u: '', min: 0.2, max: 0.8, step: 0.05 },

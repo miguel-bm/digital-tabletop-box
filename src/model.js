@@ -96,17 +96,21 @@ export function buildDesign(p) {
   const cy = y0 + t + (wallH - t) * p.cableY;
   const cz = p.handle === 'laterales' ? [tv.cz - innerZ * 0.33, tv.cz + innerZ * 0.31] : [tv.cz - innerZ * 0.18, tv.cz + innerZ * 0.12];
   const cableZones = [];
+  const hdmiOut = p.source === 'externa' || !p.source;
+  const czUse = hdmiOut ? cz : [cz[0]];
   if (p.cable === 'pasamuros') {
-    cz.forEach(z => { wallHoles[portWall].push({ circle: [z, cy, p.cableDia / 2], tag: 'Pasamuros Ø' + p.cableDia }); cableZones.push([z - p.cableDia / 2, z + p.cableDia / 2]); });
+    czUse.forEach(z => { wallHoles[portWall].push({ circle: [z, cy, p.cableDia / 2], tag: 'Pasamuros Ø' + p.cableDia }); cableZones.push([z - p.cableDia / 2, z + p.cableDia / 2]); });
   } else if (p.cable === 'panel') {
     wallHoles[portWall].push({ rect: [cz[0] - 13.75, cy - 9.9, cz[0] + 13.75, cy + 9.9], tag: 'Hueco IEC C14 27,5×19,8' });
     wallHoles[portWall].push({ circle: [cz[0] - 20, cy, 1.6] }, { circle: [cz[0] + 20, cy, 1.6] });
-    wallHoles[portWall].push({ rect: [cz[1] - 11, cy - 7.5, cz[1] + 11, cy + 7.5], tag: 'Hueco HDMI de panel 22×15' });
-    wallHoles[portWall].push({ circle: [cz[1] - 15, cy, 1.6] }, { circle: [cz[1] + 15, cy, 1.6] });
-    cz.forEach(z => cableZones.push([z - 25, z + 25]));
+    if (hdmiOut) {
+      wallHoles[portWall].push({ rect: [cz[1] - 11, cy - 7.5, cz[1] + 11, cy + 7.5], tag: 'Hueco HDMI de panel 22×15' });
+      wallHoles[portWall].push({ circle: [cz[1] - 15, cy, 1.6] }, { circle: [cz[1] + 15, cy, 1.6] });
+    }
+    czUse.forEach(z => cableZones.push([z - 25, z + 25]));
   } else {
     const nh = Math.min(wallH - t - 6, t + p.cableDia * 0.8);
-    cz.forEach(z => { wallNotches[portWall].push([z - p.cableDia / 2, y0 - 1, z + p.cableDia / 2, y0 + nh]); cableZones.push([z - p.cableDia / 2 - 3, z + p.cableDia / 2 + 3]); });
+    czUse.forEach(z => { wallNotches[portWall].push([z - p.cableDia / 2, y0 - 1, z + p.cableDia / 2, y0 + nh]); cableZones.push([z - p.cableDia / 2 - 3, z + p.cableDia / 2 + 3]); });
   }
 
   // ventilación: ranuras verticales en la pared del fondo (salida, parte alta)
@@ -445,13 +449,13 @@ export function buildDesign(p) {
   }
   if (p.cable === 'panel') {
     fixtures.push({ kind: 'iec', pos: [portRight ? xo1 + ct : xo0 - ct, cy, cz[0]], sgn: portRight ? 1 : -1, step: 'cables', follow: portRight ? 'W4' : 'W3' });
-    fixtures.push({ kind: 'hdmi', pos: [portRight ? xo1 + ct : xo0 - ct, cy, cz[1]], sgn: portRight ? 1 : -1, step: 'cables', follow: portRight ? 'W4' : 'W3' });
+    if (hdmiOut) fixtures.push({ kind: 'hdmi', pos: [portRight ? xo1 + ct : xo0 - ct, cy, cz[1]], sgn: portRight ? 1 : -1, step: 'cables', follow: portRight ? 'W4' : 'W3' });
     hw.push({ g: 'Cables', name: 'Base IEC C14 de panel con fusible (y opcional interruptor)', qty: 1, unit: 4 });
-    hw.push({ g: 'Cables', name: 'Alargo HDMI macho–hembra de panel (30 cm)', qty: 1, unit: 7 });
+    if (hdmiOut) hw.push({ g: 'Cables', name: 'Alargo HDMI macho–hembra de panel (30 cm)', qty: 1, unit: 7 });
     hw.push({ g: 'Cables', name: 'Cable interior IEC C13 → figura 8 (C7), 50 cm', qty: 1, unit: 5 });
   } else if (p.cable === 'pasamuros') {
-    cz.forEach(z => fixtures.push({ kind: 'grommet', pos: [portRight ? xo1 + ct : xo0 - ct, cy, z], r: p.cableDia / 2, sgn: portRight ? 1 : -1, step: 'cables', follow: portRight ? 'W4' : 'W3' }));
-    hw.push({ g: 'Cables', name: `Pasamuros de cepillo / goma Ø${p.cableDia}`, qty: 2, unit: 1.5 });
+    czUse.forEach(z => fixtures.push({ kind: 'grommet', pos: [portRight ? xo1 + ct : xo0 - ct, cy, z], r: p.cableDia / 2, sgn: portRight ? 1 : -1, step: 'cables', follow: portRight ? 'W4' : 'W3' }));
+    hw.push({ g: 'Cables', name: `Pasamuros de cepillo / goma Ø${p.cableDia}`, qty: czUse.length, unit: 1.5 });
   }
   // puertos de la tele y cables hasta la pared de conexiones
   {
@@ -463,11 +467,33 @@ export function buildDesign(p) {
     const cyIn = Math.min(cy, yRim - 8);
     ports.forEach(([x, y, z, k], i) => {
       fixtures.push({ kind: 'port', pos: [x, y, z], sgn, k, step: 'tv', follow: 'TV' });
+      if (k === 'hdmi' && !hdmiOut) {
+        if (p.source === 'stick') fixtures.push({ kind: 'dongle', pos: [x + sgn * 55, y, z], sgn, step: 'cables' });
+        else {
+          const px0 = wallIn - sgn * 75, pz0 = z - 20;
+          fixtures.push({ kind: 'minipc', pos: [px0, yBaseTop + 16, pz0], step: 'cables' });
+          fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts: [[x + sgn * 4, y, z], [x + sgn * 30, y - 4, z], [px0 - sgn * 40, yBaseTop + 18, pz0]], r: 2.6, color: '#2a2b30', step: 'cables' });
+          fixtures.push({ kind: 'strip', pos: [wallIn - sgn * 40, yBaseTop + 8, cz[0] + 40 * Math.sign(-cz[0] || 1)], step: 'cables' });
+        }
+        return;
+      }
       const zc = cz[k === 'power' ? 0 : 1];
       const pts = [[x + sgn * 4, y, z], [x + sgn * 40, y - 6, z], [wallIn - sgn * 40, Math.max(yBaseTop + 10, cyIn - 6), (z + zc) / 2], [wallIn - sgn * 12, cy, zc], [wallX + sgn * 30, cy, zc], [wallX + sgn * 110, Math.max(6, cy * 0.4), zc + 30 * (i ? 1 : -1)], [wallX + sgn * 380, 6, zc + 120 * (i ? 1 : -1)]];
       fixtures.push({ kind: 'cable', pos: [0, 0, 0], pts, r: k === 'power' ? 3.2 : 3.8, color: k === 'power' ? '#1b1b1c' : '#2a2b30', step: 'cables' });
     });
     if (irCovered) fixtures.push({ kind: 'ir', pos: [irPos[0], yS, irPos[1]], step: 'tv', follow: 'TV' });
+    if (p.source === 'stick') {
+      hw.push({ g: 'Imagen', name: 'Chromecast con Google TV / Fire TV Stick (dentro, al HDMI de la tele)', qty: 1, unit: 40 });
+      hw.push({ g: 'Imagen', name: 'Alargo HDMI corto en ángulo (15 cm) para el stick', qty: 1, unit: 5 });
+      warn('info', 'Con el stick dentro solo sale el cable de corriente. El Wi-Fi atraviesa el contrachapado sin problema; aliméntalo del USB de la tele si su fuente lo permite (los sticks 4K piden más corriente: usa su fuente con una regleta interior).');
+    } else if (p.source === 'minipc') {
+      hw.push({ g: 'Imagen', name: 'Raspberry Pi 5 (4 GB) + caja baja con ventilador + fuente 27 W', qty: 1, unit: 110 });
+      hw.push({ g: 'Imagen', name: 'Cable micro-HDMI → HDMI 30 cm', qty: 1, unit: 6 });
+      hw.push({ g: 'Imagen', name: 'Regleta plana de 2 tomas (interior)', qty: 1, unit: 8 });
+      const room = yRim - yBaseTop;
+      if (room < 34) warn('warn', `El mini-PC necesita unos 34 mm de alto bajo el borde de la tele; hay ${r1(room)} mm. Sube el hueco bajo la tele.`);
+      warn('info', 'El mini-PC suma 5–10 W de calor dentro de la caja: activa las rejillas (o los ventiladores) y deja su ventilador mirando a una ranura.');
+    }
   }
 
   if (p.lid) {

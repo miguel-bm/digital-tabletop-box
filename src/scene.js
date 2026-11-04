@@ -262,6 +262,13 @@ export class Viewer {
       const curve = new THREE.CatmullRomCurve3(f.pts.map(q => new THREE.Vector3(...q)));
       const me = add(new THREE.TubeGeometry(curve, 80, f.r, 8), new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.55 }), 0, 0, 0);
       me.userData.cable = true;
+    } else if (f.kind === 'dongle') {
+      add(new RoundedBoxGeometry(90, 12, 30, 2, 4), m.get('plastic'), x, y, z);
+    } else if (f.kind === 'minipc') {
+      add(new RoundedBoxGeometry(95, 30, 65, 2, 5), new THREE.MeshStandardMaterial({ color: 0xb8243a, roughness: 0.5 }), x, y, z);
+      add(new THREE.CylinderGeometry(14, 14, 2, 20), m.get('plastic'), x, y + 15.5, z);
+    } else if (f.kind === 'strip') {
+      add(new RoundedBoxGeometry(120, 16, 45, 2, 4), new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.5 }), x, y, z);
     } else if (f.kind === 'ir') {
       add(new THREE.CylinderGeometry(3, 3, 1, 12), new THREE.MeshStandardMaterial({ color: 0x3a0d0d, emissive: 0x550000, roughness: 0.3 }), x, y + 0.2, z);
     } else if (f.kind === 'latch') {

@@ -58,7 +58,7 @@ function composite(parts) {
 }
 
 // ───────── modelo térmico ─────────
-export function thermal(d, { fans = d.params.fans, vents = d.params.vents, baseVents = d.params.baseVents, Troom = 25, P = 54 } = {}) {
+export function thermal(d, { fans = d.params.fans, vents = d.params.vents, baseVents = d.params.baseVents, Troom = 25, P = 54 + (d.params.source === 'minipc' ? 8 : d.params.source === 'stick' ? 3 : 0) } = {}) {
   const p = d.params, m = d.metrics;
   const Ascr = (p.screenW * p.screenH) * 1e-6;
   // frente: pantalla → (cámara de aire + protector) → habitación
